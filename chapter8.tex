@@ -1,0 +1,147 @@
+\chapter{Podsumowanie i kierunki dalszego rozwoju}
+\label{chap:podsumowanie}
+
+Przedmiotem pracy było zaprojektowanie i implementacja systemu PlanWise, wspierającego organizację pracy projektowej oraz przygotowywanie informacji pomocnych w podejmowaniu decyzji. Rozwiązanie łączy zarządzanie projektami, zespołami, zadaniami i sprintami z analizą ryzyka, priorytetyzacją backlogu, harmonogramowaniem, proponowaniem przydziałów oraz estymacją kosztów.
+
+W niniejszym rozdziale podsumowano zakres opracowanego rozwiązania, wskazano wkład projektowy i implementacyjny oraz przedstawiono ograniczenia i kierunki rozwoju. Ocena odnosi się do funkcji obecnych w analizowanej wersji aplikacji. Wnioski dotyczące skuteczności rekomendacji wymagają wyników badań opisanych w poprzednim rozdziale.
+
+\section{Stopień realizacji celu i zakresu pracy}
+
+Cel projektowy zrealizowano przez opracowanie aplikacji internetowej z backendem opartym na .NET i frontendem utworzonym w Angularze. Część serwerową zorganizowano jako monolit modularny z podziałem odpowiedzialności pomiędzy osiem modułów.
+
+Zaimplementowano podstawowe funkcje organizacji pracy: obsługę kont, tworzenie projektów, zarządzanie zespołem, definiowanie zadań, prowadzenie backlogu i obsługę sprintów. Tablica umożliwia wizualizację statusów i przenoszenie zadań, natomiast harmonogram przedstawia planowane terminy i zależności.
+
+Dane operacyjne wykorzystano jako wspólne źródło informacji dla mechanizmów wspomagania decyzji. Dzięki temu użytkownik nie musi przygotowywać odrębnego zestawu danych dla każdej analizy. Jednocześnie jakość rekomendacji zależy od kompletności informacji wprowadzanych podczas pracy nad projektem.
+
+Zakres realizacji poszczególnych obszarów można podsumować następująco:
+
+\begin{enumerate}
+    \item Organizacja i monitorowanie pracy obejmują projekty, zadania, sprinty, tablicę, harmonogram oraz wybrane zestawienia postępu. Nie wszystkie elementy pełnego zarządzania przepływem zostały zaimplementowane; przykładem są konfigurowalne limity WIP.
+
+    \item Analiza ryzyka wykorzystuje deterministyczną punktację, a prognoza sprintu uproszczoną projekcję stałego tempa. Heurystykę wydzielono jako nazwany model bazowy za wymienną granicą programistyczną, a system rejestruje wektory cech i wyniki realizacji na potrzeby przyszłego uczenia. Nie zrealizowano natomiast dopasowania i walidacji modelu uczenia maszynowego, ponieważ wymaga to zbioru obserwacji narastającego w czasie eksploatacji systemu.
+
+    \item Priorytetyzacja backlogu wykorzystuje ważoną ocenę wartości biznesowej, zależności, złożoności i ryzyka. Wynik zawiera proponowaną kolejność i uzasadnienia.
+
+    \item Harmonogramowanie obejmuje obliczenia oparte na zależnościach, a mechanizm przydziałów przygotowuje propozycje wykonawców dla nieprzypisanych zadań. Nie jest to pełna optymalizacja terminów z uwzględnieniem kalendarzy wszystkich zasobów.
+
+    \item Estymacja kosztów korzysta z rzeczywistej integracji z modelem językowym i danych zespołu. Przetwarzanie odpowiedzi wymaga jednak rozbudowy kontroli semantycznej i rachunkowej, w tym zapewnienia kompletności wymaganych wariantów kosztowych.
+\end{enumerate}
+
+Zrealizowano zatem aplikację integrującą funkcje operacyjne i analityczne, natomiast część pierwotnych założeń pozostaje spełniona w ograniczonym zakresie. Dotyczy to przede wszystkim predykcji opartej na uczeniu maszynowym i optymalizacji uwzględniającej pełne ograniczenia czasowe oraz zasobowe.
+
+\section{Najważniejsze rezultaty projektowe i implementacyjne}
+
+Rezultatem pracy jest spójny model aplikacji, w którym dane projektu są wykorzystywane przez kilka mechanizmów wspomagania decyzji. Zadanie stanowi jednocześnie element backlogu, składnik harmonogramu i źródło cech dla analiz ryzyka, priorytetów oraz kosztów.
+
+Podział na moduły pozwolił oddzielić odpowiedzialność za dane operacyjne od odpowiedzialności za ich analizowanie. Wspólne kontrakty umożliwiają przekazywanie potrzebnych informacji bez bezpośredniego korzystania z wewnętrznych encji innych modułów.
+
+Opracowano również wspólny sposób uruchamiania analiz w tle. Zlecenia posiadają identyfikatory i stan wykonania, a klient może pobrać wynik po zakończeniu operacji. Takie rozwiązanie obsługuje zarówno lokalne obliczenia, jak i oczekiwanie na odpowiedź modelu językowego.
+
+Istotnym elementem interfejsu jest rozdzielenie propozycji od jej zastosowania. Użytkownik może przejrzeć rekomendację i uzasadnienie przed wykonaniem zmiany. W przypadku estymacji kosztów możliwe jest również odwołanie do wcześniejszych wyników.
+
+Zastosowanie jawnych funkcji heurystycznych umożliwia prześledzenie sposobu wyznaczania ocen. Ma to znaczenie podczas weryfikacji obliczeń i projektowania eksperymentów. Ujawnia także zależność wyniku od przyjętych wag, progów i wartości zastępczych.
+
+Odrębnym rezultatem jest przygotowanie systemu na zmianę metody wyznaczania prognozy. Obejmuje ono jednolitą granicę modelu, zastosowaną zarówno dla predykcji ryzyka, jak i dla estymacji kosztów, zapisywanie nazwy modelu wraz z każdym uruchomieniem analizy oraz rejestrowanie danych uczących. Ostatni z tych elementów ma charakter nieodwracalny w czasie: stan projektu z danego dnia nie może zostać odtworzony później, więc uruchomienie zapisu przed powstaniem modelu jest warunkiem, a nie następstwem dalszych prac nad predykcją.
+
+Powyższe rezultaty dotyczą opracowanych mechanizmów i ich organizacji. Nie stanowią jeszcze potwierdzenia zmniejszenia opóźnień, kosztów lub czasu pracy kierownika projektu.
+
+\section{Wkład własny}
+
+Wkład własny obejmuje zaprojektowanie i połączenie funkcji zarządzania projektami z mechanizmami analitycznymi w ramach jednej aplikacji. Dotyczy zarówno modelu danych i granic modułów, jak i realizacji przypadków użycia oraz sposobu prezentacji rekomendacji.
+
+W części serwerowej wkład obejmuje implementację obsługi projektów, zespołów i zadań, integrację modułów przez wspólne kontrakty oraz przygotowanie przebiegu analiz asynchronicznych. W części klienckiej obejmuje widoki organizacji pracy i obsługę wyników analiz w kontekście wybranego projektu.
+
+W obszarze analitycznym opracowano konfigurację czynników ryzyka, funkcję priorytetyzacji i heurystykę wyboru wykonawców. Przygotowano również kontekst estymacji kosztów oparty na danych backlogu i zagregowanych stawkach zespołu oraz integrację odpowiedzi modelu z aplikacją.
+
+W zakresie prac nad modelami wkład obejmuje zaprojektowanie granicy oddzielającej sposób wyznaczania prognozy od pozostałych odpowiedzialności modułu, sformułowanie zdarzenia docelowego i sposobu jego etykietowania, dobór rejestrowanych cech oraz opracowanie mechanizmu gromadzenia i etykietowania obserwacji wraz z obsługą przypadków cenzurowanych. W odniesieniu do modelu językowego wkład dotyczy sformułowania zadania, ograniczenia odpowiedzi do ról i stawek pochodzących z danych projektu, wymuszenia ustrukturyzowanej postaci wyniku oraz rozróżnienia niepowodzeń wymagających ponowienia od tych, dla których jest ono bezcelowe.
+
+Wykorzystane podstawy, takie jak metoda ścieżki krytycznej, suma ważona czy podejście zachłanne, są znanymi metodami. Wkład pracy polega na ich doborze, dostosowaniu i integracji z modelem PlanWise, a nie na opracowaniu nowej klasy algorytmów.
+
+Elementem opracowania jest także wskazanie ograniczeń interpretacji wyników. Rozróżnienie punktacji od prawdopodobieństwa, scenariusza od kwantyla i deklarowanej oszczędności od rzeczywistego efektu pozwala precyzyjniej określić możliwości rozwiązania.
+
+\section{Ocena tezy pracy}
+
+Teza pracy dotyczy możliwości poprawy wspomagania decyzji przez połączenie danych projektowych z mechanizmami analitycznymi. Do jej oceny potrzebne jest porównanie PlanWise z określonymi metodami bazowymi w tych samych warunkach.
+
+Opracowana implementacja pokazuje techniczną możliwość przeprowadzenia takiej integracji. System przygotowuje oceny i propozycje na podstawie danych wykorzystywanych podczas codziennej organizacji pracy, a użytkownik może odnieść wynik do konkretnych zadań i członków zespołu.
+
+Nie jest to jednak wystarczające do potwierdzenia poprawy jakości decyzji. Potrzebne są wyniki dotyczące trafności wskazań ryzyka, użyteczności rankingu, jakości przydziałów i błędów estymacji kosztów. Jeżeli teza obejmuje również usprawnienie pracy użytkownika, konieczne jest zbadanie tego efektu w zadaniach decyzyjnych.
+
+Na podstawie samej analizy implementacji teza nie może zostać uznana za empirycznie potwierdzoną. Brak wyników nie oznacza jej odrzucenia, lecz ogranicza zakres możliwego wnioskowania.
+
+% DO AKTUALIZACJI PO UZUPEŁNIENIU ROZDZIAŁU 7:
+% Wskazać, które wyniki wspierają tezę, w jakich warunkach
+% i dla jakich mechanizmów. Uwzględnić również wyniki negatywne.
+% Nie utożsamiać poprawności implementacji z jakością decyzji.
+
+\section{Ograniczenia opracowanego rozwiązania}
+
+Najważniejszym ograniczeniem pozostaje brak zbioru obserwacji o liczebności wystarczającej do wytrenowania i oceny modelu predykcyjnego. Mechanizm gromadzenia takich danych został zaimplementowany i działa przy każdym uruchomieniu analizy ryzyka, jednak zbiór narasta dopiero wraz z eksploatacją systemu. Ograniczenia tego nie da się usunąć zmianą w kodzie: stan wiedzy dostępny w chwili wcześniejszych decyzji nie może zostać odtworzony wstecz, a jedynie zapisany na bieżąco.
+
+W konsekwencji obecna wersja systemu udostępnia prognozy wyznaczane wyłącznie przez model bazowy. Ani jego trafność, ani przewaga jakiegokolwiek modelu uczonego nad nim nie zostały wykazane empirycznie.
+
+Drugim ograniczeniem jest sposób reprezentowania czasu i zasobów. Punkty, godziny, dni kalendarzowe i udział dostępności opisują różne wielkości. Obecne uproszczenia nie zapewniają wszędzie poprawnego powiązania tych jednostek. Dotyczy to zwłaszcza prognozowania wykonania sprintu i przeliczania punktów na czas trwania.
+
+Analiza zależności wymaga również pełnej kontroli acykliczności. Przygotowanie danych wykresu mimo występowania cyklu nie jest równoznaczne z wyznaczeniem wykonalnego harmonogramu.
+
+Heurystyka przydziałów wykorzystuje tekstowe dopasowanie kompetencji i stałą pojemność. Nie uwzględnia poziomu umiejętności, urlopów, zmienności dostępności ani pełnej konkurencji zadań o czas wykonawcy. Nie gwarantuje optymalności.
+
+Estymacja kosztów jest ograniczona zakresem przekazywanego kontekstu i brakiem danych o rzeczywistym nakładzie pozostałym do wykonania. Poprawność struktury odpowiedzi modelu nie gwarantuje poprawności sum, kompletności scenariuszy ani trafności uzasadnienia.
+
+Dodatkowe ograniczenia dotyczą aktualności rekomendacji i niezawodności ich stosowania. Dane mogą zmienić się między wygenerowaniem propozycji a jej zatwierdzeniem. Operacje obejmujące kilka modułów nie są automatycznie jedną transakcją, a obsługa wielu instancji procesorów wymaga dodatkowych mechanizmów współbieżności.
+
+Ograniczenia te wyznaczają zakres zastosowania obecnej wersji. System należy traktować jako rozwiązanie rozwojowe, którego rekomendacje wymagają oceny użytkownika i dalszej walidacji.
+
+\section{Kierunki dalszego rozwoju}
+
+\subsection{Ujednolicenie danych i walidacji}
+
+Pierwszym kierunkiem rozwoju powinno być uporządkowanie modelu pracochłonności i dostępności. Wskazane jest rozdzielenie oszacowania punktowego, planowanych godzin, pozostałego nakładu i czasu kalendarzowego.
+
+Dostępność zespołu powinna odnosić się do określonego okresu i uwzględniać dni robocze oraz nieobecności. Pozwoli to porównywać obciążenie i pojemność w tych samych jednostkach.
+
+Należy również wprowadzić kontrolę cykli zależności, pełniejszą walidację wyników kosztowych i oznaczanie brakujących danych. Nazwy pól sugerujące prawdopodobieństwa lub kwantyle powinny odpowiadać rzeczywistemu charakterowi obliczeń.
+
+\subsection{Gromadzenie historii i rozwój predykcji}
+
+Rejestrowanie migawek cech i wyników realizacji zostało uruchomione, dlatego dalsze prace w tym obszarze dotyczą wykorzystania gromadzonych danych, a nie samego ich pozyskiwania. Pierwszym krokiem powinno być ustalenie liczebności zbioru pozwalającej na sensowne dopasowanie modelu oraz scharakteryzowanie rozkładu etykiet, w tym udziału obserwacji cenzurowanych.
+
+Na tej podstawie można opracować model przewidujący opóźnienie lub pozostały czas realizacji. Jego ocena powinna wykorzystywać podział uwzględniający zarówno porządek czasowy, jak i przynależność obserwacji do zadań, oraz porównanie z heurystyką bazową na tych samych obserwacjach testowych.
+
+Rozszerzenia wymaga również sam zakres rejestrowanych danych. Obecny zapis obejmuje stan zadania w chwili prognozy, nie zawiera natomiast historii zmian terminów, oszacowań i przypisań pomiędzy kolejnymi uruchomieniami analizy. Uzupełnienie go pozwoliłoby rozpoznać zadania, których parametry były wielokrotnie korygowane, co samo w sobie może stanowić sygnał zagrożenia.
+
+Przed prezentowaniem wyników jako prawdopodobieństw konieczne będzie sprawdzenie kalibracji. Dotyczy to również obecnej heurystyki, której wynik zapisywany jest w polach o nazwach odwołujących się do prawdopodobieństwa. Model powinien być także monitorowany pod kątem zmian charakteru projektów i pogorszenia jakości prognoz.
+
+\subsection{Rozbudowa harmonogramowania i przydziałów}
+
+Rozwój harmonogramowania powinien objąć strukturalny opis wymagań kompetencyjnych zadań oraz kalendarze członków zespołu. Pozwoli to zastąpić dopasowanie fragmentów tytułu jawnymi warunkami wyboru wykonawcy.
+
+Po ujednoliceniu jednostek możliwe będzie sformułowanie zadania optymalizacyjnego z ograniczeniami zasobowymi i czasowymi. Funkcja celu może uwzględniać długość projektu, przekroczenia terminów, nierównomierność obciążenia i koszt zmian istniejącego planu.
+
+Heurystyka zachłanna może pozostać szybką metodą bazową. Bardziej złożone rozwiązania powinny być oceniane pod względem jakości i czasu obliczeń dla tych samych scenariuszy.
+
+\subsection{Zwiększenie wiarygodności estymacji kosztów}
+
+Model językowy powinien koncentrować się na interpretacji wymagań, proponowaniu założeń i oszacowaniu nakładu. Obliczenia rachunkowe oraz kontrola zgodności stawek powinny być realizowane deterministycznie po stronie aplikacji.
+
+Kontrakt wyniku warto rozszerzyć o jednoznaczne powiązanie pozycji kosztowych ze scenariuszem. Należy też sprawdzać zależności między rekomendacjami redukcji, aby uniknąć wielokrotnego uwzględniania tej samej oszczędności.
+
+Dalszy rozwój obejmuje rejestrowanie dokładnego kontekstu wywołania, wersji instrukcji i konfiguracji modelu. Dane te powinny również wpływać na decyzję o ponownym wykorzystaniu wcześniejszego wyniku.
+
+Po zgromadzeniu rzeczywistych kosztów możliwe będzie porównywanie estymacji z wykonaniem i identyfikowanie obszarów systematycznego niedoszacowania.
+
+\subsection{Niezawodność i kontrola zmian}
+
+Przed zastosowaniem propozycji należy ponownie sprawdzać jej aktualność. Można wykorzystać wersjonowanie danych lub zapis identyfikatora stanu, dla którego wykonano analizę.
+
+Obsługa przydziałów powinna jednoznacznie raportować częściowe niepowodzenia. Procesory zadań i wiadomości wymagają natomiast zasad przejmowania pracy, ponowień i odporności na powtórne wykonanie.
+
+Rozwój kontroli dostępu powinien obejmować jawne uprawnienia do poszczególnych działań oraz ich weryfikację w API i komunikacji czasu rzeczywistego.
+
+\subsection{Badania z udziałem użytkowników}
+
+Po usunięciu podstawowych ograniczeń wskazane jest przeprowadzenie badań z udziałem osób zarządzających projektami. Uczestnicy mogliby wykonywać te same zadania decyzyjne z dostępem do rekomendacji i bez nich.
+
+Ocena powinna obejmować czas analizy, liczbę przeoczonych problemów, poprawność decyzji i zrozumienie uzasadnień. Należy również sprawdzić, czy sposób prezentacji nie prowadzi do nadmiernego zaufania do wyników.
+
+Takie badanie pozwoli uzupełnić pomiary techniczne o ocenę rzeczywistej użyteczności. Dopiero połączenie tych perspektyw umożliwi określenie, w jakich warunkach PlanWise wspiera kierownika projektu i które mechanizmy wymagają dalszych zmian.

@@ -1,0 +1,245 @@
+\chapter{Implementacja funkcji zarządzania projektami}
+\label{chap:implementacja-funkcji}
+
+Podstawę działania systemu PlanWise stanowią funkcje umożliwiające organizację i monitorowanie pracy projektowej. Obejmują one obsługę kont, tworzenie projektów, zarządzanie zespołem, definiowanie zadań i sprintów oraz prezentowanie postępu prac. Dane powstające podczas wykonywania tych operacji są następnie wykorzystywane przez mechanizmy wspomagania decyzji.
+
+W niniejszym rozdziale przedstawiono implementację funkcji użytkowych, ze szczególnym uwzględnieniem współpracy interfejsu Angular z częścią serwerową. Omówiono przebieg najważniejszych operacji, reguły zmiany stanu i sposób prezentacji danych. Szczegóły algorytmów oceny ryzyka, priorytetyzacji, przydzielania zadań i estymacji kosztów przedstawiono w kolejnym rozdziale.
+
+\section{Obsługa kont użytkowników i sesji}
+
+Dostęp do części projektowej aplikacji wymaga uwierzytelnienia. Interfejs udostępnia widoki rejestracji, logowania, zgłoszenia potrzeby zresetowania hasła oraz ustawienia nowego hasła. Komunikację z odpowiednimi punktami końcowymi realizuje usługa \texttt{AuthService}.
+
+Podczas rejestracji użytkownik przekazuje adres e-mail, imię, nazwisko i hasło. Procedura \texttt{RegisterUserCommandHandler} sprawdza występowanie konta o podanym adresie, przygotowuje encję użytkownika i inicjuje utworzenie sesji. Przed zapisaniem danych adres jest pozbawiany skrajnych białych znaków i zamieniany na małe litery. Hasło jest przetwarzane przez komponent odpowiedzialny za wyznaczanie jego skrótu.
+
+Wynik poprawnego uwierzytelnienia zawiera dane użytkownika i token dostępu. Frontend przekazuje je do \texttt{AuthStore}, który przechowuje bieżący stan sesji. Informacje te pozwalają określić, czy użytkownik jest zalogowany, i dołączać token do kolejnych żądań.
+
+Przy ponownym uruchomieniu aplikacji w przeglądarce wykonywana jest próba odtworzenia sesji. Metoda \texttt{tryRestoreSession} wywołuje operację odświeżania. Jeżeli operacja zakończy się niepowodzeniem, lokalny stan uwierzytelnienia zostaje wyczyszczony.
+
+Wylogowanie obejmuje żądanie unieważnienia sesji po stronie serwera oraz usunięcie danych sesji z pamięci klienta. Rozdzielenie tych czynności jest istotne, ponieważ samo ukrycie widoków projektowych nie unieważnia tokenu odświeżania.
+
+Mechanizmy te stanowią wspólny punkt wejścia do funkcji projektowych. Kontrola dostępu do konkretnego projektu jest wykonywana dodatkowo podczas obsługi operacji dotyczących jego danych.
+
+\section{Tworzenie i zarządzanie projektami}
+
+Projekt stanowi nadrzędny kontekst organizacji pracy. Zawiera nazwę, prefiks kluczy zadań, oznaczenie procesu, opcjonalną nazwę klienta, status oraz identyfikator właściciela.
+
+Tworzenie projektu realizuje procedura \texttt{CreateProjectCommandHandler}. Identyfikator właściciela jest pobierany z kontekstu uwierzytelnionego użytkownika. Następnie sprawdzana jest dostępność wskazanego prefiksu, wykorzystywanego później do budowania czytelnych oznaczeń zadań.
+
+Po utworzeniu projektu właściciel jest automatycznie dodawany do listy członków. W analizowanej implementacji otrzymuje początkową wartość pola roli \texttt{Owner}, pojemność równą jeden i stawkę godzinową równą zero. Parametry te są wartościami początkowymi i wymagają dostosowania, jeżeli dane zespołu mają być wykorzystywane w analizach kosztowych.
+
+Model projektu przewiduje stany \texttt{Active}, \texttt{OnHold}, \texttt{Completed} i \texttt{Archived}. Archiwizacja zmienia status projektu, pozostawiając jego dane w modelu. Sama zmiana statusu nie powinna być utożsamiana z automatycznym zablokowaniem wszystkich operacji na zadaniach; takie zachowanie zależy od kontroli wykonywanych przez poszczególne przypadki użycia.
+
+Po wyborze projektu użytkownik przechodzi do wspólnego układu aplikacji. Jego identyfikator znajduje się w adresie i określa zakres danych pobieranych przez widoki backlogu, tablicy, zespołu i analiz.
+
+Takie rozwiązanie pozwala zachować jednoznaczny kontekst podczas nawigowania pomiędzy funkcjami. Zmiana widoku nie wymaga ponownego wybierania projektu.
+
+\section{Zarządzanie zespołem i parametrami jego członków}
+
+Członkostwo w projekcie reprezentuje encja \texttt{ProjectMember}. Zawiera ona identyfikator projektu, opcjonalny identyfikator konta, adres e-mail, rolę, pojemność, stawkę godzinową oraz listę kompetencji.
+
+Opcjonalność identyfikatora konta pozwala zapisać członka zespołu na podstawie adresu e-mail, zanim zostanie on powiązany z użytkownikiem systemu. Nie oznacza to samoistnie wysłania wiadomości z zaproszeniem. Dodanie wpisu członkostwa i dostarczenie wiadomości e-mail są odrębnymi operacjami.
+
+Podczas dodawania członka adres jest normalizowany, a procedura obsługi sprawdza, czy w projekcie nie istnieje już wpis dotyczący wskazanego użytkownika lub adresu. Po poprawnej weryfikacji nowy element zostaje zapisany.
+
+Użytkownik może aktualizować rolę, pojemność i stawkę godzinową oraz określać kompetencje. Lista kompetencji jest przechowywana jako zbiór nazw tekstowych. Przy jej aktualizacji usuwane są powtórzenia z pominięciem wielkości liter.
+
+W obecnym modelu pojedynczy wpis członkostwa posiada jedno pole roli. Nie zaimplementowano w nim odrębnej kolekcji wielu ról zawodowych przypisanych do tej samej osoby. Rozbudowa takiego modelu wymagałaby również określenia sposobu przypisywania stawek i dostępności do poszczególnych ról.
+
+Pojemność jest prezentowana w interfejsie jako udział dostępności, na przykład procent pełnego zaangażowania. Nie jest bezpośrednio liczbą punktów zadaniowych. Z tego powodu widok zespołu powinien rozróżniać wielkość przypisanych prac od deklarowanej dostępności.
+
+Stawki godzinowe i role stanowią dane wejściowe estymacji kosztów. Kompetencje i pojemność są natomiast wykorzystywane podczas przygotowywania propozycji przydziałów. Poprawność tych parametrów wpływa zatem na użyteczność późniejszych rekomendacji.
+
+\section{Tworzenie i edycja zadań}
+
+Podstawową jednostką pracy jest encja \texttt{ProjectTask}. Zadanie jest przypisane do projektu i posiada tytuł, opis, status, priorytet, oszacowanie punktowe, opcjonalnego wykonawcę i termin. Model zawiera również wartość biznesową, przynależność do sprintu oraz parametr określający kolejność.
+
+Podczas tworzenia zadania backend najpierw sprawdza dostęp użytkownika do projektu. Następnie pobiera prefiks projektu i kolejny numer zadania. Na tej podstawie budowany jest klucz, na przykład \texttt{PW-12}. Identyfikator techniczny pozostaje niezależny od tego oznaczenia.
+
+Nowe zadanie otrzymuje stan \texttt{Backlog}. Jego pozycja jest wyznaczana na podstawie największej dotychczasowej wartości porządkującej w backlogu, powiększonej o stały odstęp. Dzięki temu zadanie może zostać dodane na końcu listy bez zmiany pozycji wszystkich pozostałych elementów.
+
+W systemie rozróżniono trzy właściwości związane z ważnością i kolejnością pracy:
+
+\begin{itemize}
+    \item \texttt{Priority} --- kategoria priorytetu, przyjmująca wartości \texttt{Low}, \texttt{Medium}, \texttt{High} lub \texttt{Urgent};
+    \item \texttt{BusinessValue} --- wartość biznesowa wykorzystywana w analizach;
+    \item \texttt{Rank} --- parametr porządkujący zadania w widoku.
+\end{itemize}
+
+Właściwości te pełnią różne funkcje. Zmiana kategorii priorytetu nie jest tym samym co przesunięcie zadania w backlogu, a wartość biznesowa jest jednym z kryteriów rekomendowania kolejności.
+
+Edycja zadania wykorzystuje operację częściowej aktualizacji. Dla wybranych pól zastosowano typ \texttt{Optional<T>}, który pozwala odróżnić brak zmiany od jawnego usunięcia wartości. Umożliwia to na przykład wyczyszczenie wykonawcy, terminu, oszacowania lub przypisania do sprintu.
+
+Po stronie klienta szczegóły zadania są prezentowane w panelu otwieranym z tablicy. Zapis zmian powoduje aktualizację wybranego zadania i ponowne pobranie danych widoku. Użytkownik może dzięki temu edytować element bez opuszczania kontekstu bieżącej pracy.
+
+\section{Podzadania, etykiety i zależności}
+
+Zadanie może zawierać podzadania, które umożliwiają podział pracy na mniejsze czynności. Podzadanie posiada własny tytuł i znacznik wykonania. Interfejs serwerowy obsługuje dodawanie, aktualizowanie i usuwanie takich elementów.
+
+Podzadania nie zastępują pełnych zadań projektowych. W analizowanym modelu stanowią element zadania nadrzędnego, a ich wykonanie jest informacją o postępie jego wewnętrznych czynności.
+
+Etykiety pozwalają klasyfikować zadania niezależnie od statusu i priorytetu. Przy aktualizacji zestawu etykiet usuwane są powtarzające się identyfikatory. Powiązania etykiet z zadaniem są następnie zapisywane jako elementy jego kolekcji.
+
+Zależności są reprezentowane przez obiekty \texttt{TaskLink}. Powiązanie zawiera identyfikator drugiego zadania oraz typ relacji. Podczas dodawania sprawdzane jest istnienie obu zadań i ich przynależność do tego samego projektu.
+
+Dane o zależnościach są wykorzystywane w harmonogramowaniu, ocenie blokad i priorytetyzacji. Aby mogły służyć do obliczeń, relacje muszą być interpretowane zgodnie z ich kierunkiem i znaczeniem. Nie każde powiązanie informacyjne powinno być traktowane jako warunek rozpoczęcia pracy.
+
+W analizowanej implementacji sprawdzenie przynależności do projektu nie jest uzupełnione pełną kontrolą acykliczności grafu zależności. Wymaganie wykrywania cykli pozostaje zatem obszarem wymagającym rozbudowy. Ma ono znaczenie dla poprawności obliczeń harmonogramu przedstawionych w kolejnym rozdziale.
+
+\section{Organizacja backlogu i cyklu życia sprintu}
+
+Backlog gromadzi prace oczekujące na realizację. Użytkownik może przeglądać zadania, uzupełniać ich parametry, zmieniać kolejność i przypisywać wybrane elementy do sprintów.
+
+Sprint zawiera nazwę, opcjonalny cel, datę rozpoczęcia, datę zakończenia i stan. Po utworzeniu znajduje się w stanie \texttt{Planned}. Rozpoczęcie zmienia go na \texttt{Active}, a zakończenie na \texttt{Completed}.
+
+Metody domenowe kontrolują dozwolone przejścia. Rozpocząć można sprint planowany, natomiast zakończyć sprint aktywny. Próba wykonania operacji w niewłaściwym stanie zwraca błąd.
+
+Procedura rozpoczynania sprintu sprawdza dodatkowo, czy projekt posiada już sprint aktywny. Kontrola ta realizuje regułę pojedynczego aktywnego sprintu na poziomie przypadku użycia. Jej odporność na równoczesne żądania wymaga osobnej oceny współbieżności.
+
+Przypisanie zadania do sprintu jest powiązane z jego statusem. Jeżeli zadanie znajdowało się w backlogu, po przypisaniu otrzymuje stan \texttt{Todo}. Dzięki temu staje się widoczne w kolumnie prac oczekujących na rozpoczęcie.
+
+Usunięcie przypisania do sprintu powoduje powrót do stanu \texttt{Backlog} tylko wtedy, gdy zadanie pozostawało w stanie \texttt{Todo}. Zadania rozpoczęte i zakończone zachowują swój stan. Reguła ta zapobiega utracie informacji o postępie przy zmianie organizacji pracy.
+
+Zakończenie sprintu aktualizuje jego stan i udostępnia podsumowanie przypisanych zadań. W obecnej procedurze nie występuje automatyczne przenoszenie niezakończonych elementów do kolejnego sprintu. Dalsze zaplanowanie tych prac wymaga osobnej zmiany ich przypisania.
+
+\section{Implementacja tablicy Kanban}
+
+Tablica przedstawia zadania w trzech kolumnach odpowiadających stanom \texttt{Todo}, \texttt{InProgress} i \texttt{Done}. Dane są pobierane przez zapytanie \texttt{GetBoardQuery}, które sprawdza dostęp do projektu, odczytuje zadania w poszczególnych stanach i przygotowuje odpowiedź.
+
+Backend zwraca tablicę obejmującą projekt. Frontend umożliwia zawężenie prezentacji do wybranego sprintu, wszystkich sprintów albo zadań bez przypisania do sprintu. Domyślny filtr odwołuje się do sprintu aktywnego, jeżeli taki istnieje.
+
+Interfejs obsługuje grupowanie według statusu lub wykonawcy. Widok według statusu umożliwia zmianę stanu przez przeciąganie kart, natomiast grupowanie według wykonawcy służy do przeglądania rozdziału pracy.
+
+Obsługę przeciągania zaimplementowano z wykorzystaniem Angular CDK. Po upuszczeniu karty klient aktualizuje lokalny widok i wysyła żądanie zawierające docelowy status oraz indeks. W przypadku błędu ponownie pobiera dane z serwera.
+
+Jest to aktualizacja optymistyczna: interfejs przedstawia zmianę przed otrzymaniem potwierdzenia zapisu. Poprawia ona bezpośredniość reakcji aplikacji, ale wymaga przywrócenia zgodności z serwerem, jeżeli operacja nie zostanie wykonana.
+
+Po stronie backendu pozycja jest zapisywana w polu \texttt{Rank}. Przy umieszczeniu zadania pomiędzy dwoma elementami wyznaczana jest średnia ich wartości:
+
+\begin{equation}
+    r_{\mathrm{new}} =
+    \frac{r_{\mathrm{prev}} + r_{\mathrm{next}}}{2}.
+    \label{eq:rank-zadania}
+\end{equation}
+
+Na początku lub końcu kolumny stosowany jest stały odstęp. Pozwala to uniknąć każdorazowej numeracji wszystkich zadań. Wielokrotne wstawianie pomiędzy te same elementy jest jednak ograniczone precyzją zapisu liczby i może wymagać okresowego uporządkowania wartości.
+
+Przy przejściu do stanu \texttt{Done} zapisywany jest czas zakończenia. Jeżeli zadanie zostaje ponownie przeniesione do innego stanu, pole to jest czyszczone. Informacja jest wykorzystywana przy tworzeniu wykresu spalania.
+
+Kontrakt tablicy przewiduje miejsce na limit WIP, lecz backend zwraca obecnie wartość pustą. Implementacja zapewnia zatem wizualizację przepływu i zmianę statusów, ale nie egzekwuje konfigurowalnych limitów pracy w toku.
+
+\section{Harmonogram, wykres Gantta i kamienie milowe}
+
+Widok harmonogramu przedstawia zadania na osi czasu. Dane wiersza obejmują identyfikator i nazwę zadania, daty rozpoczęcia i zakończenia, zapas czasu, oznaczenie krytyczności oraz identyfikatory poprzedników.
+
+Frontend wykorzystuje komponent \texttt{GanttChart}. Zmiana położenia zadania jest przekazywana do magazynu stanu harmonogramu, który inicjuje komunikację z API.
+
+Ręcznie wskazane terminy są przechowywane w module \texttt{Scheduling} jako elementy harmonogramu. Pozwala to oddzielić ustawienia planu od danych opisujących samo zadanie. Przy ponownym obliczeniu harmonogramu zapisane terminy są uwzględniane jako nadpisania.
+
+Przed zapisaniem zmiany procedura \texttt{UpdateScheduleItemCommandHandler} pobiera dane zadania, weryfikuje dostęp i oblicza bieżący harmonogram. Następnie sprawdza, czy proponowane rozpoczęcie nie narusza zależności od poprzedników.
+
+Jeżeli wykryte zostanie naruszenie, operacja zwraca błąd. W przeciwnym razie tworzony lub aktualizowany jest element harmonogramu, a odpowiedź zawiera ponownie obliczone dane wiersza.
+
+Udostępniono również operację walidacji zestawu proponowanych przesunięć. Łączy ona propozycje z istniejącymi terminami i zwraca wykryte naruszenia dla wskazanych zmian. Zakres tej kontroli dotyczy zależności sprawdzanych przez implementację; nie oznacza pełnej weryfikacji kalendarzy pracowników i wszystkich konfliktów zasobowych.
+
+Kamień milowy reprezentuje nazwany punkt kontrolny projektu z określonym terminem. Model zawiera identyfikator projektu, nazwę i datę. Nie posiada parametrów pracochłonności ani wykonawcy, dlatego służy do oznaczania istotnych terminów, a nie do reprezentowania kolejnego zadania roboczego.
+
+Sposób wyznaczania terminów, zapasu czasu i krytyczności oraz ograniczenia przyjętego modelu omówiono w rozdziale dotyczącym mechanizmów wspomagania decyzji.
+
+\section{Pulpit projektu i monitorowanie postępu}
+
+Pulpit projektu agreguje dane potrzebne do wstępnej oceny stanu prac. Zapytanie \texttt{GetOverviewQuery} przygotowuje liczby zadań w poszczególnych stanach, sumę punktów, liczbę punktów zakończonych, informacje o aktywnym sprincie i listę zadań wymagających uwagi.
+
+Do ostatniej grupy zaliczane są niezakończone zadania z terminem wcześniejszym od bieżącej daty. Jest to rozpoznanie przekroczenia terminu na podstawie danych operacyjnych. Nie stanowi prognozy przyszłego opóźnienia.
+
+Zestawienie obciążenia łączy członków zespołu z przypisanymi zadaniami. Może dotyczyć całego projektu lub wybranego sprintu. Zwraca między innymi pojemność członka i sumę punktów przypisanych prac.
+
+W analizowanej procedurze suma obejmuje zadania niezależnie od ich statusu. Wynik opisuje zatem wielkość przypisanego zakresu, a nie wyłącznie pracę pozostałą do wykonania. Rozróżnienie to jest istotne podczas interpretowania zakończonego sprintu lub projektu.
+
+Osobnym elementem monitorowania jest wykres spalania sprintu. Implementacja tworzy linię idealnego spadku pozostałych punktów i serię wyznaczaną z zapisanych dat zakończenia zadań.
+
+Dla bieżącego zbioru zadań sprintu pozostały zakres w dniu \(d\) można zapisać jako:
+
+\begin{equation}
+    R(d) =
+    P -
+    \sum_{\substack{i \in S_{\mathrm{done}}\\c_i \leq d}} p_i,
+    \label{eq:burndown-implementacja}
+\end{equation}
+
+gdzie \(P\) oznacza sumę punktów zadań obecnie przypisanych do sprintu, \(S_{\mathrm{done}}\) zbiór zadań obecnie zakończonych, \(c_i\) datę zakończenia, a \(p_i\) oszacowanie punktowe. Brak oszacowania jest w tej agregacji traktowany jako zero.
+
+Dla dni przyszłych seria rzeczywista nie jest uzupełniana. W przypadku zakończonego zadania bez zapisanej daty zakończenia implementacja przyjmuje datę rozpoczęcia sprintu jako wartość zastępczą.
+
+Wykres ma ograniczenia wynikające z modelu danych. Nie korzysta z pełnej historii zmian zakresu i statusów. Ponowne otwarcie zadania usuwa jego bieżącą datę zakończenia, a zmiana przypisania lub oszacowania może wpłynąć również na wcześniej prezentowane wartości. Wykres należy więc interpretować jako rekonstrukcję na podstawie dostępnego stanu i dat zakończenia.
+
+Uzupełnieniem wykresu spalania jest zestawienie prędkości zespołu, obejmujące sprinty zakończone, uporządkowane według daty zakończenia. Dla każdego z nich zwracana jest suma punktów zadań do niego przypisanych oraz suma punktów zadań zakończonych.
+
+Zestawienie to podlega temu samemu ograniczeniu co wykres spalania. Obie wielkości są wyznaczane z bieżącego przypisania zadań do sprintów, a nie z zakresu zapisanego w chwili jego rozpoczęcia. Przeniesienie zadania do innego sprintu po zakończeniu poprzedniego zmienia zatem również wartości prezentowane dla okresów wcześniejszych. Prędkość należy więc traktować jako wielkość rekonstruowaną, a nie zarejestrowaną w momencie zamknięcia sprintu.
+
+\section{Komentarze, aktywność i powiadomienia}
+
+Komentarze umożliwiają prowadzenie dyskusji w kontekście zadania. Każdy wpis zawiera treść, identyfikator autora i czas utworzenia. Autor jest ustalany na podstawie sesji użytkownika.
+
+Dodanie komentarza jest obsługiwane jako osobna operacja. Po sprawdzeniu dostępu tworzony jest element przypisany do zadania, a model zgłasza zdarzenie domenowe opisujące tę czynność.
+
+Rejestr aktywności przedstawia wybrane zmiany zachodzące w projekcie. Użytkownik może dzięki temu rozpoznać ostatnie działania bez otwierania kolejno wszystkich zadań. API umożliwia pobieranie wpisów z określonym limitem i przesunięciem.
+
+Rejestr aktywności służy do prezentacji przebiegu pracy, ale nie powinien być automatycznie traktowany jako kompletny dziennik audytowy. Pełny audyt wymagałby określenia zakresu rejestrowanych operacji, trwałości wpisów i informacji pozwalających odtworzyć zmiany wartości.
+
+Powiadomienia stanowią osobne dane powiązane z odbiorcą. Zawierają typ, komunikat, opcjonalne odniesienie do projektu i odnośnik do odpowiedniego miejsca w aplikacji. Ich zapis realizuje implementacja kontraktu \texttt{INotificationPublisher}.
+
+Moduł powiadomień zapisuje dane we własnym kontekście bazodanowym. Oznacza to, że jego zapis nie jest automatycznie częścią transakcji operacji z innego modułu. Ma to znaczenie przy analizie sytuacji, w której podstawowa zmiana i utworzenie powiadomienia zakończą się różnymi rezultatami.
+
+Użytkownik może pobierać powiadomienia i oznaczać je jako przeczytane. Pozwala to oddzielić nowe informacje od tych, z którymi już się zapoznał.
+
+\section{Aktualizacja widoków z wykorzystaniem SignalR}
+
+Praca kilku osób nad projektem wymaga przekazywania informacji o zmianach pomiędzy otwartymi instancjami aplikacji. W PlanWise wykorzystano do tego SignalR i grupowanie połączeń według projektu.
+
+Po nawiązaniu połączenia backend weryfikuje użytkownika i jego dostęp do projektu. Dopiero po poprawnym sprawdzeniu dodaje połączenie do właściwej grupy.
+
+Po stronie Angulara obsługę komunikacji realizuje \texttt{ProjectHubService}. Widoki subskrybują potrzebne zdarzenia, a następnie aktualizują dane. Przykładowo magazyn tablicy reaguje na komunikaty o przeniesieniu i aktualizacji zadania przez ponowne pobranie zawartości tablicy.
+
+Przebieg synchronizacji obejmuje:
+
+\begin{enumerate}
+    \item wykonanie operacji przez użytkownika;
+    \item zapis zmiany po stronie serwera;
+    \item przekazanie informacji o zmianie;
+    \item odebranie komunikatu przez zainteresowane klienty;
+    \item pobranie aktualnego stanu z API.
+\end{enumerate}
+
+SignalR pełni tu funkcję sygnału do odświeżenia danych. Źródłem ich aktualnej postaci pozostaje API.
+
+Przy niszczeniu widoku tablicy usuwane są jego subskrypcje. Ogranicza to ryzyko wielokrotnego obsługiwania tych samych komunikatów po przechodzeniu pomiędzy widokami.
+
+Mechanizm aktualizacji nie rozstrzyga samodzielnie konfliktów równoczesnej edycji. Odebranie informacji o zmianie i ochrona przed nadpisaniem cudzych danych są odrębnymi zagadnieniami, które wymagają osobnej weryfikacji.
+
+\section{Integracja widoków z operacjami analitycznymi}
+
+Funkcje organizacyjne są połączone z analizami przez wspólny kontekst projektu. Użytkownik może przejść od backlogu lub harmonogramu do widoków ryzyka, priorytetów i kosztów bez ponownego wprowadzania danych zadań.
+
+Operacje wykonywane w tle są obsługiwane z wykorzystaniem identyfikatora zlecenia. Klient inicjuje analizę, śledzi jej stan, a po zakończeniu pobiera wynik. Informacja o zakończeniu może również zostać przekazana przez SignalR.
+
+W interfejsie rozróżniono prezentację propozycji od jej zastosowania. Widok harmonogramu udostępnia panel propozycji przydziałów oraz panel wyjaśnienia zawierający cel obliczeń, założenia, nazwę mechanizmu i czas wygenerowania.
+
+Dzięki temu użytkownik może zapoznać się z rekomendacją w kontekście istniejącego planu. Zatwierdzenie uruchamia odrębną operację zmieniającą dane.
+
+To rozdzielenie ma znaczenie również dla interpretacji informacji prezentowanych przez system. Opis oczekiwanej korzyści jest elementem uzasadnienia rekomendacji, a nie dowodem poprawy uzyskanym w eksperymencie.
+
+Błąd analizy powinien być prezentowany jako niepowodzenie konkretnej operacji. Nie zmienia on sam przez się danych backlogu ani wyniku wcześniej zakończonej estymacji. Zakres rzeczywistych zmian zależy od wykonanych operacji zapisu i sposobu obsługi ich niepowodzeń.
+
+\section{Konfiguracja i przygotowanie środowiska}
+
+Uruchomienie funkcji projektowych wymaga skonfigurowania połączenia z PostgreSQL, parametrów uwierzytelniania oraz adresu API wykorzystywanego przez frontend. Integracja kosztowa wymaga dodatkowo konfiguracji usługi modelu językowego.
+
+Konfiguracja serwera rejestruje moduły, ich konteksty danych, procedury obsługi żądań i usługi działające w tle. Dzięki temu przypadki użycia mogą korzystać ze wspólnych kontraktów bez samodzielnego tworzenia zależności.
+
+W środowisku deweloperskim aplikacja uruchamia migracje i udostępnia dokumentację OpenAPI. Repozytorium zawiera również konfigurację Docker Compose wspierającą przygotowanie środowiska. Obecność tych plików opisuje sposób organizacji uruchomienia, lecz nie stanowi potwierdzenia poprawnego wdrożenia w każdym środowisku.
+
+Po stronie klienta adres API jest przekazywany przez wspólny mechanizm konfiguracji. Usługi funkcjonalne korzystają z niego do budowania żądań, co ogranicza powielanie adresów w komponentach.
+
+Przy przygotowywaniu danych do oceny systemu należy uzupełnić nie tylko zadania i sprinty, lecz także wartości biznesowe, zależności, kompetencje, pojemności i stawki. Brak tych informacji ogranicza możliwości analiz, nawet gdy podstawowe operacje tworzenia i edycji działają poprawnie.
+
+Opisane funkcje tworzą warstwę danych operacyjnych dla mechanizmów inteligentnego wspomagania decyzji. Ich implementacja określa zarazem, jakie informacje są dostępne dla algorytmów i jakich danych historycznych nie można odtworzyć bez dalszej rozbudowy systemu.

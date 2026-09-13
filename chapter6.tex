@@ -1,0 +1,599 @@
+\chapter{Mechanizmy inteligentnego wspomagania decyzji}
+\label{chap:mechanizmy-inteligentne}
+
+Mechanizmy wspomagania decyzji w systemie PlanWise wykorzystują dane operacyjne do przygotowywania ocen i rekomendacji dotyczących realizacji projektu. Obejmują analizę ryzyka, prognozowanie wykonania sprintu, priorytetyzację backlogu, obliczanie harmonogramu, proponowanie przydziałów oraz estymację kosztów z wykorzystaniem dużego modelu językowego.
+
+Poszczególne mechanizmy różnią się sposobem przetwarzania informacji. Analiza ryzyka i priorytetyzacja wykorzystują deterministyczne funkcje oceny z ustalonymi wagami. Harmonogramowanie opiera się na analizie grafu zależności, natomiast przydzielanie zadań realizuje heurystyka zachłanna. Estymacja kosztów korzysta z zewnętrznego modelu językowego.
+
+W analizowanej wersji systemu nie zaimplementowano trenowania modelu predykcyjnego na historycznych wynikach realizacji projektów. Rozwiązania heurystyczne stanowią punkt odniesienia dla takiego rozszerzenia. W rozdziale przedstawiono ich rzeczywiste działanie, przyjęte założenia i ograniczenia interpretacji wyników.
+
+Prace nad modelami wykorzystywanymi przez system objęły jednak więcej niż samo zaprogramowanie heurystyk. Obejmowały również przygotowanie granicy programistycznej umożliwiającej zamianę metody, uruchomienie rejestrowania danych uczących oraz zaprojektowanie sposobu współpracy z zewnętrznym modelem językowym. Zagadnieniom tym poświęcono sekcje~\ref{sec:prace-nad-modelem-ml} i~\ref{sec:estymacja-llm-praca-nad-modelem}, przy czym konsekwentnie oddzielono w nich elementy zrealizowane od zaplanowanych.
+
+Na potrzeby rozdziału przyjęto szerokie rozumienie pojęcia modelu, obejmujące trzy różne jego postacie występujące w systemie. Pierwszą jest model jawnie zaprojektowany, w którym wagi i progi ustala projektant. Drugą jest model uczony, w którym parametry są wyznaczane na podstawie danych; w obecnej wersji przygotowano dla niego infrastrukturę, lecz nie dopasowano samego modelu. Trzecią jest gotowy model wytrenowany przez dostawcę zewnętrznego, wykorzystywany przez sformułowanie zadania i ograniczenie formatu odpowiedzi. Formy te wymagają odmiennego sposobu opisu, oceny i uzasadniania wyników, co podkreślono przy omawianiu każdej z nich.
+
+\section{Dane wejściowe i przebieg analiz}
+
+Moduły analityczne korzystają z danych udostępnianych przez wspólne kontrakty opisane w rozdziale architektonicznym. Pozwala to pobierać informacje potrzebne do obliczeń bez bezpośredniego dostępu do wewnętrznych encji innych modułów.
+
+Podstawowe grupy danych obejmują:
+
+\begin{itemize}
+    \item dane zadań: status, opis, termin, oszacowanie punktowe, wartość biznesową i wykonawcę;
+    \item relacje między zadaniami: poprzedników oraz liczbę blokowanych elementów;
+    \item dane sprintów: zakres czasowy, stan i przypisane zadania;
+    \item dane zespołu: pojemność, kompetencje, role i stawki godzinowe;
+    \item wyniki wcześniejszych analiz, w szczególności oceny ryzyka wykorzystywane podczas priorytetyzacji.
+\end{itemize}
+
+Zakres analizowanych zadań zależy od mechanizmu. Ocena ryzyka obejmuje zadania niezakończone. Ranking backlogu jest tworzony dla elementów w stanie \texttt{Backlog}. Propozycje przydziałów dotyczą zadań niezakończonych i nieposiadających wykonawcy. Do kontekstu estymacji kosztów przekazywane są wszystkie zadania niezakończone, również rozpoczęte lub przypisane do sprintu.
+
+Rozróżnienie tych zbiorów jest istotne dla interpretacji rezultatów. Ranking backlogu nie jest rankingiem wszystkich prac projektowych, a estymacja oparta na niezakończonych zadaniach nie obejmuje automatycznie kosztów już poniesionych.
+
+Analizy są uruchamiane przez wspólny mechanizm zadań asynchronicznych. Procedura obsługi pobiera dane, wykonuje obliczenia i zapisuje rezultat. Wynik jest powiązany z projektem oraz, zależnie od modułu, zawiera nazwę mechanizmu, czas utworzenia, składowe oceny i uzasadnienie.
+
+Dane wejściowe są odczytywane podczas wykonywania operacji. Nie tworzą automatycznie jednej transakcyjnej migawki wszystkich modułów. Przy równoczesnej edycji projektu poszczególne odczyty mogą zatem odzwierciedlać nieco różne momenty jego stanu.
+
+\section{Heurystyczna ocena ryzyka i prognozowanie sprintu}
+
+\subsection{Czynniki uwzględniane w ocenie ryzyka}
+
+Ocena ryzyka zadania jest obliczana przez klasę \texttt{RiskScorer}. Mechanizm wykorzystuje cztery grupy czynników: presję terminu, niezakończone zależności, brak wykonawcy i duży rozmiar zadania.
+
+Wpływ terminu zależy od różnicy między datą wykonania a bieżącą datą. Zadanie przeterminowane otrzymuje wkład równy \(0{,}35\). Jeżeli termin przypada dzisiaj lub w ciągu kolejnych trzech dni, wkład wynosi \(0{,}20\). Czynniki te są rozłączne.
+
+Dla liczby niezakończonych poprzedników \(b_i\) wkład zależności wynosi:
+
+\begin{equation}
+    B_i = \min(0{,}10b_i,\ 0{,}30).
+    \label{eq:ryzyko-zaleznosci}
+\end{equation}
+
+Uwzględniani są poprzednicy dostępni w przekazanym zbiorze danych, których status jest różny od \texttt{Done}. Ograniczenie do \(0{,}30\) oznacza, że kolejne zależności powyżej trzech nie zwiększają tej składowej.
+
+Brak przypisanego wykonawcy zwiększa wynik o \(0{,}15\). Dla zadania o oszacowaniu punktowym \(p_i\) składowa rozmiaru jest określona następująco:
+
+\begin{equation}
+    G_i =
+    \begin{cases}
+        0, & \text{gdy brak oszacowania lub } p_i < 8,\\
+        \min\left(0{,}05(p_i-8+3),\ 0{,}20\right),
+        & \text{gdy } p_i \geq 8.
+    \end{cases}
+    \label{eq:ryzyko-rozmiar}
+\end{equation}
+
+Zgodnie z implementacją zadanie o rozmiarze ośmiu punktów otrzymuje zatem wkład \(0{,}15\), a zadanie o rozmiarze dziewięciu punktów osiąga już górne ograniczenie \(0{,}20\). Próg ten jest założeniem heurystyki, a nie wartością wyznaczoną na podstawie danych.
+
+\subsection{Obliczenie i interpretacja wyniku}
+
+Niech \(T_i\) oznacza wkład związany z terminem, a \(A_i\) wkład wynikający z braku wykonawcy. Końcową ocenę można zapisać jako:
+
+\begin{equation}
+    R_i =
+    \min\left(
+        0{,}95,\,
+        \max(0,\ T_i+B_i+A_i+G_i)
+    \right).
+    \label{eq:ryzyko-koncowe}
+\end{equation}
+
+Przykładowo zadanie z terminem za dwa dni, dwoma niezakończonymi poprzednikami, bez wykonawcy i o rozmiarze ośmiu punktów otrzyma:
+
+\begin{equation}
+    R_i =
+    0{,}20+0{,}20+0{,}15+0{,}15
+    = 0{,}70.
+    \label{eq:ryzyko-przyklad}
+\end{equation}
+
+Jest to przykład obliczeniowy ilustrujący reguły, a nie wynik eksperymentu na danych projektowych.
+
+W kontraktach implementacji wynik występuje pod nazwami odnoszącymi się do prawdopodobieństwa, takimi jak \texttt{Probability} i \texttt{ProbabilityOfSlip}. Nie przeprowadzono jednak kalibracji pozwalającej interpretować wartość \(0{,}70\) jako siedemdziesięcioprocentowe prawdopodobieństwo opóźnienia.
+
+Poprawna interpretacja to względna ocena nasilenia zdefiniowanych czynników ryzyka. Wartość zero oznacza brak wykrytych czynników z przyjętej listy, a nie pewność terminowego wykonania.
+
+Ponadto część punktacji dotyczy zadań już przeterminowanych. Mechanizm łączy zatem wykrywanie istniejących problemów z sygnalizowaniem zagrożeń dla zadań, których termin jeszcze nie upłynął. Przy ocenie jakości przyszłego modelu predykcyjnego grupy te powinny zostać rozdzielone.
+
+\subsection{Szacowanie wpływu na termin i generowanie wyjaśnień}
+
+Oprócz oceny ryzyka system oblicza pomocniczy wskaźnik wpływu wyrażony w dniach. Bazowa wartość jest ustalana na podstawie oszacowania punktowego:
+
+\begin{equation}
+    d_i^{\mathrm{base}} =
+    \begin{cases}
+        3, & \text{gdy brak oszacowania},\\
+        \max\left(1,\left\lfloor p_i/2 \right\rfloor\right),
+        & \text{gdy oszacowanie jest dostępne}.
+    \end{cases}
+    \label{eq:ryzyko-dni-bazowe}
+\end{equation}
+
+Następnie:
+
+\begin{equation}
+    \Delta_i =
+    \operatorname{round}\left(R_i d_i^{\mathrm{base}}\right).
+    \label{eq:ryzyko-wplyw-dni}
+\end{equation}
+
+W implementacji wartości połówkowe są zaokrąglane w kierunku od zera. Tak wyznaczony wpływ stanowi heurystyczne przeliczenie punktacji. Nie jest oczekiwaną liczbą dni opóźnienia wyestymowaną z obserwacji historycznych.
+
+Dla każdego aktywnego czynnika zapisywana jest nazwa, wartość wkładu i opis. Krótkie uzasadnienie zawiera dwa czynniki o największym wkładzie. Użytkownik może dzięki temu sprawdzić, czy ocena wynika przede wszystkim z terminu, blokad, braku wykonawcy czy rozmiaru pracy.
+
+Oceny co najmniej równe \(0{,}50\) uruchamiają dodatkowo tworzenie powiadomień dla przypisanych wykonawców. Zadanie bez wykonawcy może uzyskać wysoki wynik, ale nie ma w tym przebiegu odbiorcy powiadomienia. Próg ten również jest parametrem projektowym, a nie rezultatem optymalizacji jakości klasyfikacji.
+
+\subsection{Prognozowanie wykonania sprintu}
+
+Klasa \texttt{SprintForecaster} przygotowuje uproszczoną projekcję wykonania aktywnego sprintu. Mechanizm zakłada stałe tempo realizacji.
+
+Niech \(P\) oznacza sumę punktów zadań sprintu, \(D\) sumę punktów zakończonych, \(L\) długość sprintu, a \(C\) wejściowy parametr pojemności. Dzienne tempo jest obliczane jako:
+
+\begin{equation}
+    v =
+    \begin{cases}
+        C/L, & C>0,\\
+        0, & C\leq 0.
+    \end{cases}
+    \label{eq:sprint-tempo}
+\end{equation}
+
+Długość sprintu jest różnicą dat zakończenia i rozpoczęcia, ograniczoną od dołu do jednego dnia. Dla liczby pozostałych dni \(t\) przewidywana liczba wykonanych punktów wynosi:
+
+\begin{equation}
+    E = \min(P,\ D+vt).
+    \label{eq:sprint-punkty}
+\end{equation}
+
+Wskaźnik zapisany w polu \texttt{CompletionProbability} jest równy:
+
+\begin{equation}
+    Q =
+    \begin{cases}
+        1, & P=0,\\
+        \min(1,\max(0,E/P)), & P>0.
+    \end{cases}
+    \label{eq:sprint-wskaznik}
+\end{equation}
+
+Wynik opisuje przewidywany udział wykonanych punktów przy zadanym tempie. Nie jest statystycznym prawdopodobieństwem ukończenia całego zakresu.
+
+Istotne ograniczenie występuje już przy przygotowaniu parametru \(C\). Procedura analizy sumuje wartości \texttt{Capacity} członków powiązanych z kontami i przekazuje je jako \texttt{teamCapacityPoints}. Tymczasem w modelu zespołu wartości te opisują udział dostępności, a nie pojemność punktową sprintu.
+
+Brakuje zatem jawnego przeliczenia dostępności na możliwy do wykonania zakres. Dopóki takie przeliczenie nie zostanie zdefiniowane i zweryfikowane, wyniki projekcji nie powinny być traktowane jako wiarygodna prognoza tempa zespołu.
+
+\subsection{Warianty daty zakończenia sprintu}
+
+Dla pozostałego zakresu \(P-D\) i dodatniego tempa obliczane są dwa warianty daty zakończenia:
+
+\begin{align}
+    t_{\mathrm{base}}
+    &= t_{\mathrm{today}}
+    + \left\lceil \frac{P-D}{v} \right\rceil,\\
+    t_{\mathrm{pess}}
+    &= t_{\mathrm{today}}
+    + \left\lceil 1{,}4\frac{P-D}{v} \right\rceil.
+    \label{eq:sprint-daty}
+\end{align}
+
+Wartości są zapisane w polach \texttt{P50DeliveryDate} i \texttt{P90DeliveryDate}. Ich obliczenie nie wykorzystuje jednak rozkładu prawdopodobieństwa. Wariant pesymistyczny wynika z przemnożenia potrzebnego czasu przez stałą \(1{,}4\).
+
+Jeżeli pozostały zakres jest równy zero, zwracana jest data bieżąca. Przy dodatnim zakresie i zerowym tempie implementacja stosuje daty zastępcze: koniec sprintu oraz koniec sprintu powiększony o siedem dni. Zapewniana jest również kolejność, w której wariant pesymistyczny nie poprzedza bazowego.
+
+Nazwy sugerujące kwantyle nie powinny przesłaniać charakteru tych wartości. W obecnej wersji są to scenariusze heurystyczne wymagające zmiany nazewnictwa lub zastąpienia modelem umożliwiającym rzeczywistą estymację kwantyli.
+
+\section{Prace nad modelem uczenia maszynowego do predykcji opóźnień}
+\label{sec:prace-nad-modelem-ml}
+
+Zastąpienie heurystyki modelem uczonym wymaga spełnienia kilku warunków, z których dopasowanie samego modelu jest ostatnim, a nie pierwszym. Wcześniej konieczne jest określenie zdarzenia docelowego, zapewnienie możliwości wymiany metody bez przebudowy modułu oraz zgromadzenie obserwacji, na których uczenie miałoby się odbywać.
+
+W analizowanej wersji systemu zrealizowano trzy pierwsze elementy: zdefiniowano zdarzenie docelowe i sposób jego etykietowania, wprowadzono granicę modelu opisaną w sekcji~\ref{sec:granica-modelu-ai} oraz uruchomiono rejestrowanie danych uczących. Nie dopasowano natomiast modelu do danych, nie przeprowadzono jego walidacji ani porównania z heurystyką. W niniejszej sekcji przedstawiono zakres wykonanych prac oraz to, co pozostaje do wykonania.
+
+Kolejność ta wynika z właściwości danych, a nie z wygody organizacji pracy. Uzasadniono ją poniżej, przy omawianiu rejestrowania obserwacji.
+
+\subsection{Model bazowy jako nazwany i wersjonowany artefakt}
+
+Heurystykę opisaną w sekcji poprzedniej wydzielono jako implementację interfejsu modelu predykcyjnego, występującą pod nazwą \texttt{WeightedScorecard v1}. Nazwa ta jest zapisywana wraz z każdym uruchomieniem analizy, obok liczby dni historii wykorzystanej przez model i listy przyjętych przez niego założeń.
+
+Model heurystyczny zwraca w polu opisującym zakres historii wartość zerową. Jest to jawna deklaracja, że prognoza nie została dopasowana do żadnych danych. Towarzyszą jej trzy stałe założenia przekazywane użytkownikowi wraz z wynikiem:
+
+\begin{itemize}
+    \item ryzyko jest oceniane przez deterministyczną heurystykę ważoną, obejmującą presję terminu, otwarte zależności blokujące, brak wykonawcy i rozmiar zadania, a nie przez model statystyczny lub uczony;
+    \item w systemie nie istnieją jeszcze dane o rzeczywistych wynikach realizacji, wobec czego heurystyka nie została skalibrowana ani zweryfikowana wstecz, a jej wagi stanowią ustalone wartości poglądowe;
+    \item prognoza sprintu zakłada stałą, codzienną dostępność zadeklarowanej pojemności każdego członka zespołu i nie modeluje dni wolnych, częściowej dostępności ani zmian zakresu w trakcie sprintu.
+\end{itemize}
+
+Drugie z wymienionych założeń wymaga komentarza, ponieważ przytoczono je w brzmieniu zapisanym w implementacji. Odnosi się ono do braku danych nadających się do dopasowania i weryfikacji wstecznej modelu, a nie do braku samego mechanizmu ich rejestrowania, który opisano w dalszej części sekcji. Sformułowanie to będzie wymagało zmiany dopiero wtedy, gdy zgromadzony zbiór osiągnie liczebność pozwalającą na kalibrację.
+
+Takie potraktowanie heurystyki nie jest zabiegiem wyłącznie porządkowym. Metoda bazowa musi pozostać uruchamialna również po wprowadzeniu modelu uczonego, ponieważ stanowi warunek kontrolny porównania. Stwierdzenie, że model uczony przewyższa heurystykę o określoną wartość, jest możliwe tylko wtedy, gdy obie metody można wykonać na tych samych danych i w tych samych warunkach.
+
+Zapisywanie nazwy modelu przy każdym uruchomieniu pozwala ponadto odróżnić oceny pochodzące z różnych metod po fakcie. Bez tej informacji zbiór wcześniejszych analiz stałby się po zmianie metody niejednorodny w sposób nierozpoznawalny.
+
+\subsection{Zdarzenie docelowe i konstrukcja etykiety}
+
+Jako zdarzenie docelowe przyjęto przekroczenie terminu zadania, przy czym terminem odniesienia jest data wymagalności znana w chwili sporządzania prognozy, a nie jej późniejsza wersja. Etykietę można zapisać jako:
+
+\begin{equation}
+    y_i =
+    \begin{cases}
+        1, & \text{zadanie zakończono po terminie odniesienia},\\
+        0, & \text{zadanie zakończono nie później niż w tym terminie}.
+    \end{cases}
+    \label{eq:etykieta-opoznienia}
+\end{equation}
+
+Obok etykiety binarnej rejestrowana jest wielkość opóźnienia wyrażona w dniach, ze znakiem. Wartość ujemna oznacza zakończenie przed terminem, co pozwala wykorzystać te same obserwacje również do sformułowania regresyjnego.
+
+Ponieważ w chwili etykietowania część zadań nie ma jeszcze rozstrzygniętego wyniku, obserwacji przypisywany jest jeden z czterech stanów. Stan oczekujący oznacza zadanie otwarte przed terminem, dla którego wynik nie jest jeszcze znany. Stany terminowy i opóźniony opisują wynik rozstrzygnięty. Osobny stan przewidziano dla zadań pozbawionych terminu: nie mają one względem czego się opóźnić, więc etykieta nie może dla nich powstać nigdy, a nie jedynie jeszcze nie powstała. Rozróżnienie to zapobiega gromadzeniu obserwacji trwale oczekujących na rozstrzygnięcie, które nie nastąpi.
+
+\subsection{Wektor cech rejestrowany w chwili prognozy}
+
+Dla każdego ocenianego zadania zapisywany jest wektor cech opisujących jego stan w dniu wykonania prognozy. Zestawienie rejestrowanych wielkości przedstawia tabela~\ref{tab:cechy-modelu}.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Cechy rejestrowane dla zadania w chwili sporządzania prognozy}
+    \label{tab:cechy-modelu}
+    \begin{tabularx}{\textwidth}{@{}lX@{}}
+        \toprule
+        \textbf{Grupa} & \textbf{Rejestrowane wielkości} \\
+        \midrule
+        Parametry zadania
+        & status, priorytet, oszacowanie punktowe, wartość biznesowa. \\
+        \addlinespace
+        Termin
+        & obecność terminu, data wymagalności, liczba dni pozostałych do terminu
+        (wartość ujemna dla zadania już przeterminowanego). \\
+        \addlinespace
+        Zależności
+        & liczba poprzedników niezakończonych, liczba poprzedników ogółem,
+        liczba zadań blokowanych przez dane zadanie. \\
+        \addlinespace
+        Podzadania
+        & liczba podzadań ogółem i liczba podzadań wykonanych. \\
+        \addlinespace
+        Wykonawca
+        & obecność przypisania, liczba otwartych zadań wykonawcy,
+        suma punktów jego otwartych zadań. \\
+        \addlinespace
+        Kontekst sprintu
+        & przynależność do sprintu, liczba dni pozostałych do jego zakończenia. \\
+        \addlinespace
+        Kontekst projektu
+        & liczba otwartych zadań w projekcie. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Istotną decyzją projektową jest zapisywanie wielkości surowych, a nie przetworzonych. Rejestrowana jest liczba dni do terminu, a nie informacja, czy termin uznano za bliski; liczba otwartych poprzedników, a nie przypisana im waga. Progi i wagi stanowią bowiem właśnie te założenia heurystyki, które model uczony ma wyznaczyć samodzielnie. Zapisanie wartości już przetworzonych przeniosłoby opinie metody bazowej do danych, na których uczony miałby być jej następca, a uzyskana w ten sposób zgodność wyników nie miałaby wartości poznawczej.
+
+Z tego samego powodu zapisywane cechy nie są tożsame z uzasadnieniami prezentowanymi użytkownikowi. Uzasadnienie zawiera wyłącznie czynniki, które zadziałały, i to w postaci wyznaczonych wag. Zadanie nieprzeterminowane nie pozostawia w nim żadnego śladu informującego, ile dni faktycznie pozostawało do terminu.
+
+Obciążenie projektu i poszczególnych wykonawców jest wyznaczane raz na uruchomienie, a nie osobno dla każdego zadania. Wielkości te są wspólne dla całego przebiegu, a ich ponowne obliczanie wewnątrz pętli po zadaniach prowadziłoby do złożoności kwadratowej.
+
+\subsection{Rejestrowanie i etykietowanie obserwacji}
+
+Rejestrowanie danych realizuje odrębny komponent, uruchamiany przy każdym wykonaniu analizy ryzyka. Wykonuje on dwie czynności: zapisuje wektory cech bieżącego przebiegu wraz z wygenerowaną dla nich prognozą oraz uzupełnia o rzeczywisty wynik te wcześniejsze obserwacje, których rezultat stał się już znany.
+
+Zapis odbywa się w ramach tej samej transakcji co zapis wyników analizy. Wraz z cechami rejestrowana jest prognoza wygenerowana w danym przebiegu oraz nazwa modelu, który ją wykonał. Dzięki temu każdy wiersz stanowi kompletną parę: stan znany danego dnia oraz przewidywanie sformułowane na jego podstawie.
+
+Uzupełnianie wyników zrealizowano jako odczyt bieżącego stanu zadań przy okazji kolejnych analiz, a nie jako reakcję na zdarzenie zakończenia zadania. Przyjęto to rozwiązanie z dwóch powodów. Zdarzenie zakończenia nie wystąpiłoby w przypadku najistotniejszym z punktu widzenia predykcji, to znaczy dla zadania pozostającego długo otwartym po upływie terminu. Ponadto data zakończenia zadania jest trwale zapisywana, więc późniejsze ustalenie wyniku nie powoduje utraty dokładności, a jedynie opóźnia moment uzupełnienia wiersza.
+
+Obserwacje zapisane w bieżącym przebiegu są uwzględniane przy uzupełnianiu wyników łącznie z wcześniejszymi. Zapytanie do bazy danych nie widzi bowiem wierszy dodanych w tej samej, jeszcze niezatwierdzonej transakcji. Bez jawnego ich dołączenia zadanie zarejestrowane jako już przeterminowane oczekiwałoby na ustalenie wyniku aż do następnego uruchomienia analizy.
+
+Warto podkreślić, że mechanizm ten zapisuje dane, z których żaden element systemu obecnie nie korzysta. Nie jest to przeoczenie, lecz konsekwencja wskazanej wcześniej właściwości: system przechowuje stan bieżący, więc wektor cech niezapisany w danym dniu nie może zostać odtworzony później. Zbiór uczący nie powstaje wstecz, lecz wyłącznie narasta od momentu uruchomienia rejestrowania.
+
+\subsection{Obserwacje cenzurowane}
+
+Odrębnego potraktowania wymagają zadania otwarte i jednocześnie przeterminowane. Wiadomo o nich, że opóźnienie już wystąpiło, nie jest natomiast znana jego ostateczna wielkość. Zapisana liczba dni stanowi wyłącznie dolne ograniczenie.
+
+Obserwacje takie są oznaczane jako cenzurowane i pozostają na liście wierszy podlegających ponownemu rozstrzygnięciu. Przy kolejnych uruchomieniach analizy są sprawdzane ponownie, a po faktycznym zakończeniu zadania dolne ograniczenie zostaje zastąpione wartością rzeczywistą i oznaczenie cenzurowania jest zdejmowane.
+
+Rozróżnienie to ma znaczenie dla poprawności późniejszego uczenia. Potraktowanie wartości cenzurowanej jako dokładnej prowadziłoby do systematycznego zaniżania prognozowanego opóźnienia, ponieważ największe opóźnienia byłyby zapisywane z wartościami zmierzonymi przed zakończeniem zadania. Ryzyko to dotyczy zwłaszcza sformułowania regresyjnego, w którym wielkość opóźnienia jest zmienną objaśnianą.
+
+Uwzględniono również przypadki, w których etykieta nie może powstać mimo wcześniejszego zarejestrowania obserwacji. Termin zadania może zostać usunięty po wykonaniu prognozy, a samo zadanie może zostać usunięte z projektu. Wiersze takie pozostają nierozstrzygnięte i nie są uzupełniane wartościami zastępczymi.
+
+\subsection{Właściwości zgromadzonego zbioru i dalsze prace}
+
+Ponieważ obserwacja jest zapisywana przy każdym uruchomieniu analizy, to samo zadanie dostarcza z czasem kilku przykładów, opisujących różne momenty jego realizacji i dzielących ostatecznie jeden wynik. Jest to zamierzone, gdyż każdy wiersz stanowi odrębną parę stanu i rezultatu. Powoduje jednak, że obserwacje nie są wzajemnie niezależne.
+
+Konsekwencją tej właściwości jest wymaganie wobec przyszłego podziału danych. Musi on grupować obserwacje według zadania, tak aby różne migawki tego samego zadania nie trafiły jednocześnie do zbioru uczącego i testowego. Podział losowy prowadziłby tu do zawyżonej oceny jakości modelu.
+
+Do wykonania pozostaje właściwa część uczenia maszynowego. Obejmuje ona ustalenie minimalnej liczebności zbioru pozwalającej na sensowne dopasowanie, wybór sformułowania zadania oraz rodziny modelu, przeprowadzenie uczenia z podziałem uwzględniającym czas i przynależność obserwacji do zadań, a następnie sprawdzenie kalibracji prognozowanych prawdopodobieństw. Osobnym krokiem jest porównanie z modelem bazowym i wskazanie warunków, w których model uczony nie przynosi poprawy.
+
+Nie ustalono dotąd rozkładu etykiet w gromadzonych danych. Jeżeli okaże się on silnie niezrównoważony, konieczne będzie uwzględnienie tej cechy zarówno w doborze metryk, jak i w sposobie uczenia. Jest to jedno z zagadnień, których nie da się rozstrzygnąć przed zebraniem danych.
+
+\section{Wielokryterialna priorytetyzacja backlogu}
+
+\subsection{Wybór kryteriów i normalizacja}
+
+Priorytetyzację realizuje klasa \texttt{PriorityScorer}. Analizowane są zadania w stanie \texttt{Backlog}. Mechanizm wykorzystuje wartość biznesową, liczbę blokowanych prac, złożoność wyrażoną w punktach i ostatnią dostępną ocenę ryzyka.
+
+Wartości biznesowe, oszacowania punktowe i liczby blokowanych zadań są dzielone przez maksima występujące w aktualnym backlogu. Mianowniki są ograniczone od dołu do jedności.
+
+Dla wartości biznesowej \(v_i\), punktów \(p_i\) i liczby blokowanych zadań \(b_i\) normalizacja dostępnych wartości ma postać:
+
+\begin{align}
+    V_i &= \frac{v_i}{\max(1,\max_j v_j)},\\
+    C_i &= \frac{p_i}{\max(1,\max_j p_j)},\\
+    B_i &= \frac{b_i}{\max(1,\max_j b_j)}.
+    \label{eq:priorytet-normalizacja}
+\end{align}
+
+Brak wartości biznesowej lub oszacowania jest zastępowany wynikiem \(0{,}5\). Tę samą wartość otrzymuje składowa ryzyka, jeżeli nie istnieje dostępna ocena dla zadania.
+
+Wartość zastępcza oznacza przyjęte założenie neutralności. Nie wynika z rozkładu danych. Zadanie z brakującą wartością biznesową może przez to otrzymać wyższą ocenę tej składowej niż zadanie z małą, ale uzupełnioną wartością.
+
+Normalizacja zależy od aktualnego zbioru. Dodanie zadania o bardzo dużej wartości biznesowej lub rozmiarze zmienia składowe pozostałych elementów nawet wtedy, gdy ich własne dane nie zostały zmodyfikowane.
+
+\subsection{Funkcja oceny i tworzenie rankingu}
+
+Łączna ocena zadania wynosi:
+
+\begin{equation}
+    S_i =
+    0{,}40V_i
+    + 0{,}25B_i
+    + 0{,}15(1-C_i)
+    + 0{,}20R_i.
+    \label{eq:priorytet-funkcja}
+\end{equation}
+
+Największą wagę przypisano wartości biznesowej. Składowa zależności premiuje prace umożliwiające realizację innych zadań. Złożoność jest uwzględniana odwrotnie, dzięki czemu przy pozostałych kryteriach równych wyżej oceniane jest zadanie mniejsze.
+
+Dodatni wpływ ryzyka odzwierciedla założenie, że zagrożonym elementem warto zająć się wcześniej. Nie oznacza to jednak, że zadanie o wysokim ryzyku jest gotowe do rozpoczęcia. Może być ono nadal zablokowane przez poprzedników.
+
+Ranking nie zastępuje więc kontroli wykonalności i zależności. Wysoka pozycja może oznaczać potrzebę interwencji kierownika, a nie możliwość natychmiastowego rozpoczęcia implementacji.
+
+Wagi są stałymi zapisanymi w kodzie. Nie zostały wyuczone ani dostrojone na podstawie decyzji kierowników. Ich wpływ powinien zostać oceniony przez analizę wrażliwości.
+
+\subsection{Uzasadnienia i obsługa rekomendacji}
+
+Zadania są sortowane malejąco według \(S_i\). Wynik zawiera pozycję dotychczasową, proponowaną, składowe oceny i krótkie uzasadnienie. Przy równych wynikach zastosowane sortowanie zachowuje kolejność wejściową wynikającą z bieżącego porządku backlogu.
+
+Uzasadnienie jest budowane z dwóch największych ważonych wkładów. Może wskazywać na przykład wysoką wartość biznesową i odblokowanie innych prac. Jest to opis funkcji oceny, a nie niezależna analiza przyczyn sukcesu projektu.
+
+Składowa ryzyka pochodzi z ostatnich dostępnych wyników modułu \texttt{RiskPrediction}. Jeżeli od wykonania analizy zmieniły się terminy, zależności lub wykonawcy, ranking może korzystać z nieaktualnych ocen. Aktualność poszczególnych źródeł powinna być zatem uwzględniana przy prezentacji rekomendacji.
+
+Moduł przewiduje zatwierdzanie i odrzucanie propozycji. Oddziela to wygenerowanie rankingu od decyzji o wykorzystaniu go w organizacji backlogu.
+
+\section{Harmonogramowanie i proponowanie przydziałów}
+
+\subsection{Graf zależności i porządek obliczeń}
+
+Harmonogram jest obliczany przez klasę \texttt{ScheduleCalculator}. Zadania tworzą wierzchołki grafu, a relacje poprzedzania określają wymaganą kolejność. Na podstawie list poprzedników budowane są listy następników.
+
+Do ustalenia porządku wykorzystywany jest algorytm Kahna. Kolejno przetwarzane są zadania, których poprzednicy zostali już uwzględnieni.
+
+W poprawnym grafie acyklicznym pozwala to wykonać obliczenia w przód i wstecz. Implementacja posiada jednak zachowanie zastępcze dla elementów nierozstrzygniętych: dopisuje je do końca kolejności wejściowej.
+
+Takie elementy mogą należeć do cyklu lub być od niego zależne. Ich dopisanie umożliwia przygotowanie danych widoku, ale nie usuwa sprzeczności. Wyniki obliczeń dla takiego grafu nie powinny być interpretowane jako poprawny harmonogram CPM.
+
+\subsection{Czasy trwania i terminy}
+
+Czas trwania zadania bez ręcznego nadpisania jest określany jako:
+
+\begin{equation}
+    d_i =
+    \begin{cases}
+        1, & \text{gdy brak oszacowania},\\
+        \max(1,p_i), & \text{w przeciwnym przypadku}.
+    \end{cases}
+    \label{eq:harmonogram-czas}
+\end{equation}
+
+Przyjęto więc uproszczenie jednego punktu jako jednego dnia. Obliczenia wykorzystują dodawanie dni kalendarzowych i nie pomijają automatycznie weekendów ani nieobecności.
+
+Dla zadań bez nadpisanych terminów najwcześniejsze rozpoczęcie jest wyznaczane na podstawie daty bieżącej i zakończeń poprzedników:
+
+\begin{align}
+    ES_i &= \max\left(t_0,\max_{j\in Pred(i)}EF_j\right),\\
+    EF_i &= ES_i+d_i,
+    \label{eq:harmonogram-przod}
+\end{align}
+
+gdzie \(t_0\) oznacza datę wykonania obliczeń. Dla zadania bez poprzedników przyjmowane jest \(ES_i=t_0\).
+
+Wykorzystanie daty bieżącej oznacza, że harmonogram bez ręcznych terminów może przesuwać się przy kolejnych odczytach. Nie jest to trwała data rozpoczęcia projektu.
+
+W przebiegu wstecznym obliczane są najpóźniejsze rozpoczęcia względem wyznaczonego końca projektu. Zapas czasu wynosi:
+
+\begin{equation}
+    TF_i=LS_i-ES_i.
+    \label{eq:harmonogram-zapas}
+\end{equation}
+
+Implementacja oznacza zadanie jako krytyczne, gdy \(TF_i\leq 0\). Ujemny zapas, możliwy przy ograniczeniach ręcznych, należy odróżnić od zerowego zapasu w podstawowym modelu CPM.
+
+Ręcznie zapisane daty zastępują terminy wyznaczane w przebiegu w przód. Nie oznacza to pełnego rozwiązania problemu harmonogramowania z ograniczeniami zasobowymi. Wykonawca, jego dostępność i konkurencja kilku zadań o ten sam zasób nie określają tutaj czasu trwania.
+
+\subsection{Przygotowanie zadań i kandydatów do przydziału}
+
+Propozycje przydziału przygotowuje \texttt{ScheduleOptimisationJobHandler}, identyfikowany jako \texttt{GreedyCapacityBalancer v1}.
+
+Do zbioru kandydatów należą członkowie posiadający identyfikator konta i dodatnią pojemność. Analizowane są zadania niezakończone, które nie mają wykonawcy.
+
+Początkowe obciążenie osoby jest sumą punktów jej niezakończonych zadań:
+
+\begin{equation}
+    L_j =
+    \sum_{\substack{i:\,assignee(i)=j\\i\text{ niezakończone}}}p_i.
+    \label{eq:przydzial-obciazenie}
+\end{equation}
+
+Brak oszacowania jest w tej sumie traktowany jako zero. Takie zadanie może zatem zostać przydzielone bez zwiększenia obciążenia używanego w kolejnych wyborach.
+
+Nieprzypisane zadania są porządkowane najpierw według krytyczności, a następnie malejąco według punktów. Krytyczność jest na potrzeby tej operacji obliczana bez przekazania ręcznych nadpisań harmonogramu. Może więc różnić się od oznaczeń widocznych w planie uwzględniającym daty użytkownika.
+
+\subsection{Dopasowanie kompetencji i wybór wykonawcy}
+
+Dopasowanie kompetencji jest realizowane przez sprawdzenie, ile nazw kompetencji danej osoby występuje w tytule zadania. Porównanie pomija wielkość liter.
+
+Niech \(M_{ij}\) oznacza liczbę dopasowań dla zadania \(i\) i osoby \(j\), a \(C_j>0\) jej pojemność. Wybór można zapisać jako porządek leksykograficzny:
+
+\begin{equation}
+    j^\ast =
+    \operatorname*{arg\,min}_{j}
+    \left(-M_{ij},\frac{L_j}{C_j}\right).
+    \label{eq:przydzial-wybor}
+\end{equation}
+
+Najpierw preferowana jest największa liczba dopasowań, a dopiero wśród takich samych wyników najmniejsze obciążenie podzielone przez pojemność. Po wyborze do obciążenia dodawane są punkty zadania.
+
+Nie jest to kompromis ważony między kompetencjami a obciążeniem. Nawet mocno obciążona osoba może zostać wybrana, jeżeli uzyska więcej dopasowań tekstowych niż pozostali kandydaci.
+
+Wskaźnik \(L_j/C_j\) służy do porównania względnego obciążenia. Ponieważ licznik jest wyrażony w punktach, a mianownik jako udział dostępności, wynik nie jest procentem wykorzystania czasu pracy.
+
+Dopasowanie tekstowe nie sprawdza poziomu kompetencji ani rzeczywistych wymagań zadania. Może nie rozpoznać synonimów lub wskazać przypadkową zgodność fragmentu tekstu. Jest to zastępnik strukturalnego modelu wymaganych umiejętności.
+
+\subsection{Zapis, zatwierdzanie i ograniczenia propozycji}
+
+Wynik jest zapisywany jako propozycja zawierająca zadania i sugerowanych wykonawców. Dołączane są opis celu, informacje o uwzględnionych założeniach i ograniczeniach oraz opis oczekiwanej zmiany obciążenia.
+
+Użytkownik może zastosować całość lub wybrane przydziały. Wspólna procedura \texttt{ProposalApplier} sprawdza dostęp, pobiera wybrane pozycje i przekazuje zmiany przez \texttt{IProjectTasksService}.
+
+Aktualna implementacja nie wykonuje pełnej ponownej oceny danych przed zastosowaniem propozycji. W szczególności przebieg ten nie porównuje wszystkich założeń z bieżącym stanem zadań i zespołu. Zmiana wykonawcy po wygenerowaniu analizy może więc wymagać dodatkowej ochrony przed nadpisaniem.
+
+Kolejne przydziały są wykonywane przez wywołania między modułami. Nie stanowią automatycznie jednej transakcji obejmującej cały zestaw. Dodatkowo procedura nie wykorzystuje zwracanej wartości logicznej operacji przypisania, co ogranicza możliwość jednoznacznego rozpoznania częściowego niepowodzenia.
+
+Algorytm nie zmienia terminów ani istniejących przydziałów na etapie generowania propozycji. Nie modeluje kalendarzy nieobecności i nie wymusza górnej granicy obciążenia w ustalonym okresie.
+
+Opis oczekiwanej korzyści porównuje różnicę między największą i najmniejszą sumą punktów przed przydziałem i po nim. Wartość ta może wzrosnąć, mimo sformułowania komunikatu sugerującego redukcję. Ocena działania powinna zatem opierać się na obliczonych miarach, a nie na samym opisie tekstowym.
+
+\section{Estymacja kosztów z wykorzystaniem modelu językowego}
+\label{sec:estymacja-llm-praca-nad-modelem}
+
+Estymacja kosztów jest jedynym mechanizmem systemu korzystającym z modelu wytrenowanego poza projektem. Praca nad nim miała więc inny charakter niż w przypadku dwóch pozostałych postaci modelu omawianych w rozdziale: nie obejmowała doboru wag ani dopasowania parametrów, lecz sformułowanie zadania, ograniczenie formatu odpowiedzi, określenie zakresu przekazywanego kontekstu oraz obsługę przypadków, w których odpowiedź odbiega od oczekiwanej postaci.
+
+\subsection{Przygotowanie kontekstu estymacji}
+
+Estymację uruchamia \texttt{CostEstimationJobHandler}. Procedura pobiera nazwę projektu, opcjonalną nazwę klienta, niezakończone zadania i zestaw stawek zespołu.
+
+Dla zadania przekazywane są tytuł, opis, priorytet i punkty. Kontekst nie zawiera pełnego modelu zależności, wartości biznesowych ani rejestru rzeczywiście poniesionych kosztów.
+
+Analiza dotyczy zakresu niezakończonego. W przypadku prac rozpoczętych nie ma jednak osobnego oszacowania pozostałych godzin. Model otrzymuje opis i punkty zadania, dlatego rozróżnienie całkowitego nakładu od nakładu pozostałego wymaga dodatkowego doprecyzowania.
+
+Instrukcja przekazywana modelowi wskazuje brak historycznych danych o rzeczywistych wydatkach. Zapobiega to traktowaniu nieistniejących danych jako podstawy estymacji, choć sama instrukcja nie gwarantuje poprawności każdej wygenerowanej wypowiedzi.
+
+\subsection{Wyznaczanie stawek dla ról}
+
+Zestaw stawek przygotowuje \texttt{ProjectMemberRateCardProvider}. Uwzględnia członków z dodatnią stawką i niepustą rolą. Role są grupowane bez rozróżniania wielkości liter.
+
+Dla grupy \(J_r\) reprezentującej rolę \(r\), stawki członka \(s_j\) i pojemności \(c_j\) stawka zbiorcza wynosi:
+
+\begin{equation}
+    \bar{s}_r =
+    \frac{\sum_{j\in J_r}s_jc_j}
+         {\sum_{j\in J_r}c_j},
+    \label{eq:koszt-stawka-roli}
+\end{equation}
+
+o ile suma pojemności jest dodatnia. W przeciwnym razie stosowana jest zwykła średnia stawek. Wynik jest zaokrąglany do dwóch miejsc po przecinku.
+
+Dostępność roli jest sumą pojemności jej wycenionych członków. Osoby bez stawki lub roli są zwracane osobno jako niewycenione i nie wchodzą do tej agregacji.
+
+Jeżeli nie ma żadnej wycenionej osoby, stosowany jest zestaw zastępczy z jedną rolą \texttt{Team member}, stawką \(75\) USD za godzinę i dostępnością równą jeden. Jest to stała implementacyjna, a nie zweryfikowana stawka rynkowa. Kontekst nakazuje modelowi ujawnić zastępczy charakter danych.
+
+Waluta w analizowanym przebiegu jest ustalona jako USD. Nie zaimplementowano tutaj przeliczania walut. Wprowadzane stawki muszą być interpretowane zgodnie z tą konfiguracją.
+
+\subsection{Integracja z Anthropic i struktura odpowiedzi}
+
+Integrację realizuje \texttt{AnthropicCostEstimationModel}, będący implementacją \texttt{ICostEstimationModel}. Klient wykonuje żądanie do punktu \texttt{/v1/messages}, korzystając z konfigurowanej nazwy modelu i klucza API. Komunikacja odbywa się bezpośrednio przez klienta HTTP, bez pośrednictwa biblioteki dostawcy. Ogranicza to liczbę zależności zewnętrznych modułu, lecz przenosi na aplikację odpowiedzialność za budowę żądania i interpretację odpowiedzi.
+
+Nazwa modelu stanowi element konfiguracji, a nie stałą w kodzie. W analizowanej wersji domyślną wartością jest \texttt{claude-sonnet-5}, a adres usługi oraz klucz dostępu są konfigurowane obok niej. Rozwiązanie to pozwala zmienić wykorzystywany model bez przebudowy aplikacji, a zarazem umożliwia zapisanie wraz z każdą estymacją informacji o tym, który model ją wykonał.
+
+Instrukcja systemowa określa rolę modelu jako asystenta estymacji. Zasadnicza jej część dotyczy jednak nie zadania, lecz ograniczeń nałożonych na odpowiedź. Model może korzystać wyłącznie z ról występujących w przekazanym zestawie stawek, zapisanych dokładnie tak, jak zostały podane, bez ich tworzenia, łączenia ani dzielenia. Musi stosować podane stawki godzinowe zamiast własnych oszacowań rynkowych, a koszt każdej pozycji ma być iloczynem godzin i stawki. Liczba etatów przypisana roli ogranicza proporcję przydzielanych jej godzin, a rolę, dla której nakład byłby pozorny, model ma pominąć zamiast uzupełniać ją symbolicznymi wartościami.
+
+Ograniczenia te wynikają z obserwacji poczynionych podczas prac nad integracją. Pozycje kosztowe dotyczące ról nieobsadzonych w projekcie sprawiały, że kosztorys sprawiał wrażenie przygotowanego w oderwaniu od danych przedsięwzięcia. Podział odpowiedzialności przyjęty w instrukcji jest zatem jawny: stawki i skład zespołu są danymi wejściowymi, a model wybiera wyłącznie liczbę godzin.
+
+Odpowiedź jest żądana w postaci wymuszonego wywołania narzędzia \texttt{submit\_cost\_estimate}, a nie w postaci tekstu zawierającego strukturę danych. Rozwiązanie to przyjęto ze względu na niezawodność odczytu: wymuszone wywołanie narzędzia o zadeklarowanym schemacie jest znacznie pewniejsze w przetwarzaniu niż oczekiwanie, że odpowiedź tekstowa okaże się poprawnym dokumentem. Definicja narzędzia opisuje strukturę zawierającą:
+
+\begin{itemize}
+    \item scenariusze kosztowe;
+    \item pozycje kosztów pracy według ról;
+    \item koszty pozapłacowe;
+    \item podział kosztów według priorytetów;
+    \item założenia i uzasadnienie;
+    \item rekomendacje redukcji kosztów.
+\end{itemize}
+
+Nazwy pól i ich typy umożliwiają deserializację do modelu aplikacyjnego. Rekomendacjom redukcji identyfikatory nadaje backend.
+
+Wymuszenie określonej struktury nie jest jednak pełną walidacją semantyczną. Definicja tablicy scenariuszy nie ogranicza jej do dokładnie trzech elementów ani do nazw odpowiadających wariantom optymistycznemu, realistycznemu i pesymistycznemu. Zapewnienie tego wymagania wymaga dodatkowej kontroli.
+
+\subsection{Koszty, scenariusze i poprawność wyniku}
+
+Dla roli \(r\) koszt pracy powinien wynosić:
+
+\begin{equation}
+    K_r=h_r\bar{s}_r,
+    \label{eq:koszt-pozycji}
+\end{equation}
+
+gdzie \(h_r\) jest oszacowaną liczbą godzin. Koszt rozpatrywanego wariantu powinien być spójny z jego kosztami pracy i pozostałymi wydatkami:
+
+\begin{equation}
+    K=
+    \sum_r K_r+\sum_k N_k,
+    \label{eq:koszt-suma}
+\end{equation}
+
+gdzie \(N_k\) oznacza pozycję kosztu pozapłacowego.
+
+Równania te opisują wymagane zależności rachunkowe. Obecny klient przekazuje je w instrukcji, lecz po odczytaniu odpowiedzi nie wykonuje pełnego ponownego obliczenia i porównania sum.
+
+Podobnie pola \texttt{percentile} i \texttt{confidence} nie potwierdzają statystycznej kalibracji. Deklarowany przez model poziom niepewności jest częścią wygenerowanego wyniku. Bez danych porównawczych nie można uznać go za empirycznie potwierdzony przedział lub kwantyl.
+
+Dalsza walidacja powinna obejmować co najmniej zgodność ról i stawek, nieujemność wartości, kompletność scenariuszy, kolejność ich kosztów i spójność sum. Należy również określić, do którego scenariusza odnoszą się wspólne pozycje kosztowe, ponieważ kontrakt zawiera jedną listę kosztów pracy i jedną listę kosztów pozapłacowych.
+
+\subsection{Obsługa błędów i ponowienia}
+
+Klient podejmuje maksymalnie dwie próby w przypadku błędu deserializacji reprezentowanego przez \texttt{JsonException}. Oznacza to jedną próbę podstawową i co najwyżej jedno ponowienie.
+
+Rozwiązanie to wynika z rozróżnienia dwóch rodzajów niepowodzeń. Wymuszenie wywołania narzędzia zwiększa niezawodność odczytu, lecz jej nie gwarantuje: model może zwrócić wartość niezgodną z zadeklarowanym schematem, na przykład tekst w miejscu tablicy. Jest to odchylenie od schematu, a nie błąd komunikacji, i ponowienie zapytania ma szansę je usunąć. Niepowodzenie na poziomie HTTP, takie jak nieprawidłowe uwierzytelnienie, powtórzyłoby się natomiast identycznie, dlatego nie jest ponawiane.
+
+Również brak oczekiwanego bloku odpowiedzi nie musi być obsłużony przez tę samą ścieżkę, ponieważ jest sygnalizowany innym typem wyjątku.
+
+Mechanizm ogranicza część problemów z formatem, ale nie sprawdza jakości oszacowania. Poprawnie odczytany wynik może nadal zawierać błędne założenia lub niespójności rachunkowe.
+
+Niepowodzenie jest przekazywane do wspólnej obsługi zadań asynchronicznych, dzięki czemu klient może rozpoznać zakończenie analizy błędem.
+
+\subsection{Historia i ponowne wykorzystanie estymacji}
+
+Przed wywołaniem modelu obliczany jest skrót SHA-256 wybranych danych wejściowych. Obejmuje uporządkowane niezakończone zadania i zagregowany zestaw stawek.
+
+Jeżeli ostatnia estymacja projektu posiada taki sam skrót, zwracana jest lokalizacja istniejącego wyniku. Ogranicza to ponowne wywołania przy niezmienionych danych i utrzymuje ten sam rezultat dla takiego odczytu.
+
+Porównanie dotyczy ostatniej estymacji, a nie wyszukiwania wszystkich historycznych wyników. Nowe zlecenie może więc odwołać się do wcześniejszego rezultatu bez utworzenia nowego rekordu estymacji.
+
+Skrót nie obejmuje wszystkich elementów wpływających na odpowiedź. Pomija między innymi nazwę modelu, wersję instrukcji, nazwę projektu i klienta oraz oznaczenie zastępczego zestawu stawek. Zmiana tych danych nie musi unieważnić ostatniego wyniku.
+
+Dla pełniejszej odtwarzalności należałoby rozszerzyć identyfikację wejścia o wersję konfiguracji analizy i przechowywać dokładny kontekst użyty do konkretnego wywołania.
+
+\subsection{Rekomendacje redukcji kosztów}
+
+Model może zaproponować ograniczenie zakresu, zmniejszenie nakładu wybranej roli lub przesunięcie wydatku. Każda rekomendacja zawiera opis, szacowaną oszczędność, przewidywany efekt i deklarację pewności.
+
+Zastosowanie redukcji w obecnej implementacji zapisuje informację o jej wyborze dla danej estymacji. Nie usuwa automatycznie zadań z backlogu ani nie zmienia stawek i przydziałów.
+
+Wybrana oszczędność pozostaje zatem elementem scenariusza kosztowego. Nie jest wydatkiem, którego uniknięcie zostało już potwierdzone.
+
+Przy łączeniu rekomendacji należy uwzględniać ich zależności. Dwie propozycje mogą dotyczyć tego samego zakresu, dlatego suma deklarowanych oszczędności nie musi odpowiadać łącznemu efektowi ich realizacji.
+
+\section{Wyjaśnialność, ograniczenia i rola użytkownika}
+
+PlanWise udostępnia uzasadnienia pozwalające powiązać rekomendację z danymi wejściowymi. Charakter tych uzasadnień zależy od mechanizmu.
+
+W ocenie ryzyka i priorytetyzacji wynik jest wyznaczany przez jawną funkcję. Można odtworzyć wkład poszczególnych cech i sprawdzić obliczenia. W przydzielaniu zadań można prześledzić kolejność elementów, dopasowanie kompetencji i względne obciążenie.
+
+Wyjaśnienie wygenerowane przez model językowy ma inny status. Przedstawia deklarowane założenia i argumenty, ale nie stanowi gwarantowanego zapisu wewnętrznego procesu wyznaczania odpowiedzi. Jego poprawność trzeba oceniać względem danych projektu i zależności rachunkowych.
+
+Wprowadzenie modelu uczonego zmieniłoby charakter wyjaśnienia w module ryzyka, choć nie jego format. Struktura wyniku przewiduje dla każdego czynnika nazwę, wielkość wpływu i opis. W modelu heurystycznym wielkością tą jest ustalona waga reguły, natomiast model uczony raportowałby w tym samym miejscu przypisanie wpływu wyznaczone dla konkretnej prognozy. Zachowanie wspólnej struktury pozwala utrzymać sposób prezentacji, lecz nie zwalnia z obowiązku poinformowania użytkownika, że wielkości te mają wówczas inne znaczenie i podlegają innym ograniczeniom interpretacyjnym.
+
+Wspólnym ograniczeniem jest jakość danych operacyjnych. Brak terminów, oszacowań i stawek może prowadzić do zastosowania wartości zastępczych. Wynik liczbowy nie powinien ukrywać tego faktu.
+
+Istotna jest również spójność jednostek. Punkty zadaniowe, dni kalendarzowe, godziny pracy i udział dostępności opisują różne wielkości. Ich przeliczenie wymaga jawnego modelu, którego brak ogranicza wiarygodność prognoz i porównań obciążenia.
+
+Użytkownik pozostaje odpowiedzialny za ocenę wykonalności propozycji. Powinien mieć możliwość rozpoznania, z jakiego stanu danych pochodzi wynik, jakie przyjęto założenia i które ograniczenia pominięto.
+
+Opisane mechanizmy pozwalają przygotować uporządkowane rekomendacje oraz ujawnić część ich podstaw. Ocena tego, czy rzeczywiście poprawiają decyzje w porównaniu z przyjętymi rozwiązaniami bazowymi, wymaga eksperymentów i miar przedstawionych w kolejnym rozdziale.

@@ -1,0 +1,395 @@
+\chapter{Testowanie i ocena opracowanego rozwiązania}
+\label{chap:testowanie}
+
+Ocena systemu PlanWise wymaga rozróżnienia poprawności działania aplikacji od użyteczności generowanych rekomendacji. Poprawne zapisanie zadania, wyznaczenie wartości funkcji oceny lub odebranie odpowiedzi modelu językowego nie oznacza jeszcze, że system skutecznie wspomaga zarządzanie projektem. Konieczne jest zatem sprawdzenie zarówno realizacji przypadków użycia, jak i jakości mechanizmów analitycznych.
+
+W rozdziale przedstawiono zakres testów obecnych w repozytorium, scenariusze weryfikacji funkcjonalnej oraz metodykę eksperymentów dotyczących ryzyka, priorytetów, przydziałów i kosztów. Oddzielono ustalenia wynikające z analizy kodu od wyników wymagających uruchomienia aplikacji i przeprowadzenia pomiarów.
+
+Na etapie przygotowania niniejszego opisu nie przedstawiono raportu z wykonania pełnego zestawu testów ani wyników eksperymentów porównawczych. Z tego powodu opis procedur badawczych nie jest równoznaczny z potwierdzeniem ich wykonania.
+
+\section{Cele i zakres weryfikacji}
+
+Weryfikacja rozwiązania obejmuje trzy uzupełniające się obszary. Pierwszym jest poprawność funkcjonalna, rozumiana jako zgodność operacji z wymaganiami i regułami modelu. Drugim jest poprawność techniczna, obejmująca granice modułów, kontrolę dostępu, obsługę błędów i trwałość danych. Trzecim jest jakość wspomagania decyzji.
+
+W odniesieniu do ostatniego obszaru przyjęto następujące pytania badawcze:
+
+\begin{enumerate}
+    \item Czy ocena ryzyka wskazuje zadania zagrożone opóźnieniem skuteczniej niż prosta reguła oparta wyłącznie na terminie?
+    \item Czy gromadzone dane uczące powstają poprawnie, to znaczy czy rejestrowane cechy odpowiadają stanowi z chwili prognozy, a etykiety rzeczywistym wynikom realizacji?
+    \item Czy ranking backlogu odpowiada zadanym preferencjom i jak silnie zmienia się po modyfikacji wag lub danych?
+    \item Czy propozycje przydziałów poprawiają rozdział pracy względem prostych metod bazowych?
+    \item Czy estymacje modelu językowego są kompletne, spójne rachunkowo i dostatecznie stabilne?
+    \item Czy czas oczekiwania i sposób prezentacji wyników pozwalają wykorzystać analizy podczas pracy z projektem?
+\end{enumerate}
+
+Odpowiedź na każde pytanie wymaga odpowiedniej podstawy porównania. Nie należy utożsamiać zgodności wyniku z zakodowanym wzorem z trafnością założeń tego wzoru.
+
+Przykładowo test potwierdzający, że zadanie bez wykonawcy otrzymuje dodatkowe punkty ryzyka, sprawdza implementację reguły. Dopiero porównanie z rzeczywistymi rezultatami realizacji pozwala ocenić, czy reguła pomaga identyfikować przyszłe opóźnienia.
+
+\section{Warunki odtwarzalności badań}
+
+Przed wykonaniem eksperymentów należy utrwalić wersję aplikacji, konfigurację oraz dane wejściowe. W przypadku mechanizmów korzystających z daty bieżącej konieczne jest również ustalenie daty odniesienia.
+
+Opis środowiska powinien zawierać:
+
+\begin{itemize}
+    \item identyfikator wersji kodu;
+    \item wersje środowiska .NET, Node.js i PostgreSQL;
+    \item parametry komputera lub środowiska uruchomieniowego;
+    \item konfigurację procesorów zadań asynchronicznych;
+    \item identyfikator i wersję zbioru danych;
+    \item nazwę modelu językowego i konfigurację wywołań;
+    \item nazwę modelu predykcji ryzyka zapisaną przy uruchomieniu analizy;
+    \item datę odniesienia wykorzystywaną w obliczeniach.
+\end{itemize}
+
+Dla heurystyk deterministycznych te same dane, parametry i data odniesienia powinny prowadzić do tego samego wyniku. W przypadku modelu językowego powtarzalność należy sprawdzić przez niezależne wywołania.
+
+Istotne jest uwzględnienie pamięci podręcznej estymacji kosztów. Wielokrotne pobranie tego samego zapisanego rezultatu nie jest badaniem stabilności modelu. Eksperyment powtarzalności musi obejmować rzeczywiste wywołania modelu z identycznym kontekstem, z pominięciem ponownego wykorzystania wcześniejszej estymacji.
+
+% DO UZUPEŁNIENIA PO PRZEPROWADZENIU BADAŃ:
+% wersja kodu, środowisko, konfiguracja, identyfikatory danych,
+% liczba powtórzeń i terminy wykonania eksperymentów.
+
+\section{Testy architektoniczne}
+
+W repozytorium znajduje się projekt \texttt{PlanWise.ArchitectureTests}. Zawiera testy kierunku zależności dla wszystkich ośmiu modułów oraz test ograniczający bezpośrednie odwołania między modułami.
+
+Weryfikowane są reguły strukturalne związane z podziałem na warstwy i izolacją obszarów funkcjonalnych. Ich celem jest wykrywanie zmian, które naruszają przyjętą organizację rozwiązania, na przykład wprowadzają niedozwoloną zależność między projektami.
+
+Testy architektoniczne mają znaczenie szczególnie podczas rozbudowy wspólnych kontraktów. Umożliwiają sprawdzenie, czy dodanie nowego mechanizmu analitycznego nie prowadzi do bezpośredniego wykorzystania wewnętrznych elementów innego modułu.
+
+Zakres tych testów jest jednak ograniczony. Nie potwierdzają one poprawności zapytań do bazy, skuteczności autoryzacji ani atomowości operacji obejmujących kilka kontekstów danych. Nie wykrywają również każdej zależności semantycznej wynikającej z zawartości kontraktów.
+
+Na podstawie przeglądu repozytorium można potwierdzić obecność tych testów. Potwierdzenie ich przejścia wymaga raportu z uruchomienia dla wskazanej wersji aplikacji.
+
+\section{Testy jednostkowe i weryfikacja reguł domenowych}
+
+W module \texttt{IdentityAccess} znajdują się testy dotyczące obsługi sesji, wybranych procedur użytkownika i walidacji. Obejmują między innymi:
+
+\begin{itemize}
+    \item zapis skrótu tokenu odświeżania;
+    \item unieważnienie poprzedniego tokenu podczas odnowienia sesji;
+    \item odrzucenie tokenu wygasłego;
+    \item unieważnienie aktywnego tokenu przy wylogowaniu;
+    \item normalizację danych podczas rejestracji;
+    \item odrzucenie zduplikowanego adresu e-mail;
+    \item odrzucenie niepoprawnego hasła;
+    \item zatrzymanie niepoprawnego żądania przed wykonaniem procedury obsługi.
+\end{itemize}
+
+Testy te sprawdzają wybrane zachowania w izolacji. Nie zastępują weryfikacji całego procesu uwierzytelniania z rzeczywistą bazą danych i klientem HTTP.
+
+Dla funkcji projektowych istotne są reguły przejść stanów. Weryfikacja powinna objąć rozpoczęcie sprintu planowanego, zakończenie sprintu aktywnego i odrzucenie niedozwolonych przejść. Osobno należy sprawdzić zachowanie zadania przy dołączeniu do sprintu i usunięciu tego przypisania.
+
+Testy częściowej aktualizacji powinny rozróżniać pominięcie pola, przekazanie nowej wartości i jawne wyczyszczenie wartości. Dotyczy to zwłaszcza wykonawcy, oszacowania, terminu i sprintu.
+
+Dla algorytmów należy wybierać przypadki ujawniające istotne właściwości, a nie jedynie powtarzające implementację. Przykładem jest sprawdzenie, czy zwiększenie wartości biznesowej nie obniża oceny tego samego zadania przy niezmienionych pozostałych danych i wagach.
+
+Oddzielnej kontroli wymagają wartości graniczne: brak zadań, brak oszacowań, zerowa pojemność, brak wykonawców i niepoprawny graf zależności.
+
+\section{Testy integracyjne i scenariusze funkcjonalne}
+
+Testy integracyjne powinny sprawdzać współpracę punktów końcowych, procedur obsługi i bazy danych. W tym celu potrzebna jest odrębna baza testowa, przygotowywana w powtarzalny sposób.
+
+Podstawowy scenariusz obejmuje utworzenie konta, projektu i zespołu, a następnie dodanie zadań, utworzenie sprintu i wykonanie zmian statusów. Po każdej operacji należy sprawdzić zarówno odpowiedź API, jak i stan danych pobrany ponownie.
+
+Szczególnie istotne są przypadki obejmujące więcej niż jeden moduł. Zastosowanie propozycji przydziałów powinno zostać sprawdzone pod kątem zgodności zmienionych zadań ze stanem zapisanej propozycji.
+
+Testy powinny uwzględniać niepowodzenie podczas wykonywania kolejnych przydziałów. Pozwoli to określić, czy częściowa zmiana jest wykrywana i czy stan propozycji odpowiada rzeczywistym danym.
+
+Dla zadań asynchronicznych należy sprawdzić:
+
+\begin{enumerate}
+    \item zapis zlecenia i zwrócenie jego identyfikatora;
+    \item wybór właściwej procedury wykonawczej;
+    \item zapis wyniku i lokalizacji rezultatu;
+    \item zapis niepowodzenia;
+    \item zachowanie po przerwaniu procesu;
+    \item zachowanie przy równoczesnym pobieraniu zleceń przez więcej niż jedną instancję.
+\end{enumerate}
+
+Ostatnie dwa przypadki mają znaczenie dla określenia ograniczeń wdrożeniowych. Wspólny zapis zleceń w bazie nie zapewnia automatycznie bezpiecznego przejmowania pracy przez wiele procesorów.
+
+Dla mechanizmu Outbox należy sprawdzić wspólny zapis zmiany domenowej i wiadomości, poprawną obsługę zdarzenia oraz zachowanie po błędzie. Oczekiwania powinny odpowiadać obecnej implementacji, która nie zapewnia automatycznego ponawiania wiadomości oznaczonych jako przetworzone z błędem.
+
+\section{Testy interfejsu i kontroli dostępu}
+
+\subsection{Weryfikacja interfejsu użytkownika}
+
+Repozytorium zawiera pliki testowe części klienckiej, jednak ich obecność nie określa stopnia pokrycia scenariuszy użytkownika. Potrzebne jest sprawdzenie zachowania całych przepływów.
+
+Weryfikacja interfejsu powinna objąć tworzenie i edycję zadania, filtrowanie tablicy, zmianę sprintu, przeciąganie kart oraz przegląd wyników analiz.
+
+Szczególnej uwagi wymaga aktualizacja optymistyczna. Po odrzuceniu zmiany przez serwer widok powinien wrócić do stanu zgodnego z zapisanymi danymi i umożliwić użytkownikowi rozpoznanie niepowodzenia.
+
+Zmianę kolejności należy sprawdzić zarówno bez filtrów, jak i przy aktywnym filtrze sprintu. Indeks widoczny w przefiltrowanej kolumnie może mieć inne znaczenie niż indeks w pełnym zbiorze zadań przetwarzanym przez backend.
+
+W dwóch równocześnie otwartych sesjach należy zweryfikować propagację zmian przez SignalR. Osobno trzeba sprawdzić ponowne połączenie i odświeżenie stanu po chwilowej utracie komunikacji.
+
+\subsection{Weryfikacja izolacji danych}
+
+Testy kontroli dostępu powinny wykorzystywać co najmniej dwa konta i dwa projekty o różnych członkostwach. Dla każdej operacji należy sprawdzić, czy użytkownik spoza projektu może odczytać lub zmienić jego dane po podaniu znanego identyfikatora zasobu.
+
+Zakres powinien obejmować zadania, sprinty, wyniki analiz, propozycje, zlecenia asynchroniczne i połączenia SignalR. Ochrona listy projektów nie wystarcza, jeżeli bezpośredni adres zasobu pozwala ominąć ograniczenie.
+
+Należy również odróżnić dostęp do projektu od uprawnień do konkretnego działania. Jeżeli wymagania przewidują różne uprawnienia kierownika i członka zespołu, testy muszą sprawdzać odpowiednią macierz operacji.
+
+Dodatkowe scenariusze obejmują token wygasły, token unieważniony i zmianę członkostwa podczas aktywnej sesji. Usunięcie użytkownika z projektu wymaga sprawdzenia zarówno kolejnych żądań HTTP, jak i wcześniej ustanowionego połączenia czasu rzeczywistego.
+
+\section{Projekt danych eksperymentalnych}
+
+Do oceny mechanizmów analitycznych potrzebne są różne rodzaje danych. Małe, ręcznie przygotowane przypadki umożliwiają sprawdzenie obliczeń. Większe zbiory syntetyczne pozwalają badać reakcję na skalę i zmianę parametrów. Dane historyczne są natomiast potrzebne do oceny trafności prognoz względem rzeczywistych rezultatów.
+
+Zbiór scenariuszy powinien uwzględniać:
+
+\begin{itemize}
+    \item projekty o małej i dużej liczbie zadań;
+    \item zadania niezależne, łańcuchy i rozgałęzione grafy zależności;
+    \item zróżnicowane wartości biznesowe i oszacowania;
+    \item równomiernie i nierównomiernie obciążone zespoły;
+    \item brakujące dane;
+    \item niejednolite kompetencje i dostępności;
+    \item zmiany zakresu, terminów i parametrów zespołu.
+\end{itemize}
+
+Dla danych syntetycznych należy zapisać reguły generowania i ziarno generatora. Scenariusze powinny zawierać również przypadki niekorzystne dla ocenianej metody.
+
+Nie należy generować etykiet opóźnienia bezpośrednio z funkcji \texttt{RiskScorer}, a następnie używać ich jako dowodu trafności tej funkcji. Taki eksperyment potwierdzałby jedynie zgodność z przyjętą regułą generowania danych.
+
+Podobnie ranking referencyjny nie powinien być wyznaczany przez te same wagi, które są oceniane, jeżeli celem jest badanie użyteczności priorytetyzacji.
+
+Brak rzeczywistych danych historycznych ogranicza zakres możliwych wniosków. W takim przypadku można ocenić poprawność, wrażliwość i zachowanie w scenariuszach, ale nie rzeczywistą skuteczność prognozowania opóźnień.
+
+Odrębnym źródłem danych jest zbiór obserwacji gromadzony przez system podczas kolejnych uruchomień analizy ryzyka. Różni się on od pozostałych tym, że powstaje wyłącznie wraz z upływem czasu i nie może zostać wygenerowany na potrzeby eksperymentu. Na etapie sporządzania niniejszego opisu jego liczebność nie pozwalała na dopasowanie modelu, dlatego przewidziano dla niego dwa odrębne rodzaje oceny, omówione w sekcji~\ref{subsec:ocena-danych-uczacych}: weryfikację poprawności samego mechanizmu rejestrowania, możliwą do wykonania natychmiast, oraz ocenę jakości modelu, możliwą dopiero po zgromadzeniu wystarczającej liczby obserwacji.
+
+\section{Ocena mechanizmu ryzyka i prognoz sprintu}
+
+\subsection{Ocena heurystyki ryzyka}
+
+Pierwszy etap obejmuje sprawdzenie reakcji na czynniki wejściowe. Należy zweryfikować terminy graniczne, liczbę blokad, próg rozmiaru, brak wykonawcy i ograniczenie końcowej wartości.
+
+Do oceny przewidywania potrzebne są zadania obserwowane przed upływem terminu. Zadania już przeterminowane powinny tworzyć osobną grupę, ponieważ rozpoznanie istniejącego opóźnienia nie jest prognozą.
+
+Jako rozwiązanie bazowe można przyjąć regułę wskazującą zadania z terminem w ciągu trzech dni. Obie metody powinny być oceniane dla tych samych zadań, momentów obserwacji i definicji opóźnienia.
+
+Dla wybranego progu oceny można obliczyć precyzję i czułość:
+
+\begin{align}
+    \operatorname{Precision}
+    &= \frac{TP}{TP+FP},\\
+    \operatorname{Recall}
+    &= \frac{TP}{TP+FN},
+    \label{eq:testy-precision-recall}
+\end{align}
+
+gdzie \(TP\) oznacza poprawnie wskazane opóźnienia, \(FP\) fałszywe alarmy, a \(FN\) opóźnienia niewskazane przez metodę. Jeżeli mianownik jest równy zero, należy zgłosić brak możliwości wyznaczenia miary.
+
+Przy ograniczonej liczbie zadań, które kierownik może przeanalizować, użyteczna jest również trafność wśród pierwszych \(k\) wskazań:
+
+\begin{equation}
+    \operatorname{Precision@k}
+    =
+    \frac{\text{liczba opóźnionych zadań w pierwszych }k\text{ wskazaniach}}{k}.
+    \label{eq:testy-precision-k}
+\end{equation}
+
+Próg i wartość \(k\) należy ustalić przed oceną końcowego zbioru. Dobór ich na tych samych danych, na których raportowany jest wynik, prowadziłby do zawyżenia oceny.
+
+Ponieważ obecna punktacja nie jest skalibrowanym prawdopodobieństwem, podstawowa ocena powinna dotyczyć jakości wskazań i rankingu. Nie należy interpretować samego zakresu od zera do jedności jako potwierdzenia probabilistycznego charakteru wyniku.
+
+\subsection{Ocena prognoz sprintu}
+
+Przed badaniem trafności prognoz sprintu konieczne jest rozstrzygnięcie sposobu przeliczenia dostępności zespołu na pojemność punktową. Wykryta w implementacji niezgodność jednostek ogranicza sens porównywania obecnych dat z rzeczywistym wykonaniem.
+
+Po zdefiniowaniu przelicznika można mierzyć błąd przewidywanej liczby wykonanych punktów oraz daty zakończenia. Dla \(n\) obserwacji średni błąd bezwzględny wynosi:
+
+\begin{equation}
+    \operatorname{MAE}
+    =
+    \frac{1}{n}\sum_{i=1}^{n}
+    \left|\hat{y}_i-y_i\right|,
+    \label{eq:testy-mae}
+\end{equation}
+
+gdzie \(\hat{y}_i\) jest prognozą, a \(y_i\) wynikiem rzeczywistym. Dla dat różnicę należy wyrazić w dniach.
+
+Warianty zapisane pod nazwami P50 i P90 należy oceniać jako wariant bazowy i pesymistyczny. Ich interpretacja jako kwantyli wymagałaby odrębnego modelu i sprawdzenia częstości dotrzymywania wskazanych terminów.
+
+\subsection{Ocena mechanizmu gromadzenia danych uczących}
+\label{subsec:ocena-danych-uczacych}
+
+Weryfikacja tego mechanizmu musi zostać rozdzielona na dwa etapy, ponieważ dotyczą one różnych przedmiotów oceny i są wykonalne w różnym czasie.
+
+Pierwszy etap obejmuje poprawność samego rejestrowania i jest możliwy do przeprowadzenia niezależnie od liczby zgromadzonych obserwacji. Jest to weryfikacja funkcjonalna, a nie ocena jakości prognoz. Powinna objąć następujące własności:
+
+\begin{enumerate}
+    \item zgodność zapisanych cech ze stanem zadania w dniu wykonania analizy, w szczególności poprawność znaku liczby dni pozostałych do terminu dla zadania przeterminowanego;
+    \item zapisanie dokładnie jednej obserwacji dla każdego ocenianego zadania w danym przebiegu;
+    \item nadanie stanu wykluczającego etykietowanie zadaniom pozbawionym terminu;
+    \item uzupełnienie wyniku po zakończeniu zadania, wraz z poprawnym znakiem liczby dni różnicy dla zadania zakończonego przed terminem;
+    \item oznaczenie jako cenzurowanej obserwacji dotyczącej zadania otwartego po terminie oraz ponowne jej rozstrzygnięcie po faktycznym zakończeniu zadania;
+    \item uzupełnienie wyniku obserwacji zapisanej w bieżącym przebiegu, bez oczekiwania na kolejne uruchomienie analizy;
+    \item pozostawienie nierozstrzygniętą obserwacji dotyczącej zadania, któremu usunięto termin lub które usunięto z projektu.
+\end{enumerate}
+
+Osobno należy sprawdzić, czy rejestrowane są wielkości surowe, a nie przetworzone przez metodę bazową. Wykrycie w zapisie wartości progowanych lub ważonych oznaczałoby przeniesienie założeń heurystyki do danych uczących, co podważałoby sens późniejszego porównania obu metod.
+
+Drugi etap, dotyczący jakości modelu, wymaga zgromadzenia wystarczającej liczby rozstrzygniętych obserwacji i nie może zostać wykonany wcześniej. Przed przystąpieniem do niego należy scharakteryzować sam zbiór: podać liczbę obserwacji ogółem oraz w podziale na stany wyniku, liczbę odrębnych zadań i projektów, udział obserwacji cenzurowanych, rozkład etykiet oraz zakres czasowy gromadzenia.
+
+Podział na część uczącą i testową musi grupować obserwacje według zadania oraz uwzględniać porządek czasowy. Wynika to z opisanej wcześniej zależności między obserwacjami dotyczącymi tego samego zadania. Przy raportowaniu wyników należy jawnie podać zastosowany sposób podziału, ponieważ podział losowy prowadziłby w tym przypadku do wyniku zawyżonego, a zarazem trudnego do odróżnienia od poprawnego bez znajomości procedury.
+
+Obserwacje cenzurowane wymagają odrębnego potraktowania zależnie od sformułowania zadania. W ujęciu klasyfikacyjnym informacja o wystąpieniu opóźnienia jest pełna i obserwacja może zostać wykorzystana bezpośrednio. W ujęciu regresyjnym zapisana liczba dni stanowi jedynie dolne ograniczenie, dlatego takie obserwacje należy albo wyłączyć, albo zastosować metodę uwzględniającą cenzurowanie. Przyjęte rozwiązanie trzeba podać wraz z wynikiem.
+
+Porównanie z modelem bazowym powinno zostać przeprowadzone na tych samych obserwacjach testowych. Jest to wykonalne bez ponownego uruchamiania systemu, ponieważ wraz z każdą obserwacją zapisano prognozę wygenerowaną w danym dniu oraz nazwę modelu, który ją sporządził. Zgromadzone dane pozwalają zatem ocenić również jakość obecnej heurystyki, a nie wyłącznie jej przyszłego następcy.
+
+\section{Ocena priorytetyzacji backlogu}
+
+Ocena priorytetyzacji powinna obejmować poprawność funkcji, stabilność rankingu i zgodność z niezależnym punktem odniesienia.
+
+Jako metody bazowe można wykorzystać bieżącą kolejność backlogu oraz sortowanie wyłącznie według wartości biznesowej. Porównanie powinno dotyczyć tego samego zakresu zadań.
+
+Analiza wrażliwości polega na zmianie wag i ponownym wyznaczeniu kolejności. Należy zapisać wielkość zmiany oraz sposób zachowania sumy wag równej jeden.
+
+Dodatkowe scenariusze powinny obejmować dodanie zadania o skrajnej wartości, uzupełnienie brakującego oszacowania i aktualizację ocen ryzyka. Pozwoli to określić, czy niewielka zmiana danych prowadzi do dużej reorganizacji backlogu.
+
+Przeciętną zmianę pozycji można opisać jako:
+
+\begin{equation}
+    D_{\mathrm{rank}}
+    =
+    \frac{1}{n}\sum_{i=1}^{n}
+    \left|r_i^{(a)}-r_i^{(b)}\right|,
+    \label{eq:testy-zmiana-rankingu}
+\end{equation}
+
+gdzie \(r_i^{(a)}\) i \(r_i^{(b)}\) oznaczają pozycje tego samego zadania w dwóch rankingach.
+
+Jeżeli dostępni są oceniający posiadający doświadczenie projektowe, mogą przygotować niezależną kolejność na podstawie wspólnego opisu celu i ograniczeń. Należy jednak raportować również rozbieżności między oceniającymi, ponieważ nie zawsze istnieje jeden poprawny ranking.
+
+Sama zgodność z oceną eksperta nie dowodzi poprawy wyniku projektu. Może natomiast wskazywać, czy rekomendacja jest zrozumiała i odpowiada zadanym preferencjom.
+
+\section{Ocena harmonogramu i przydziałów}
+
+\subsection{Weryfikacja obliczeń harmonogramu}
+
+Dla małych grafów należy przygotować ręcznie wyznaczone terminy i zapasy czasu. Przypadki powinny obejmować pojedyncze zadanie, łańcuch, rozgałęzienie i kilka zadań końcowych.
+
+Osobno należy sprawdzić ręczne nadpisania, brak oszacowania, graf cykliczny i zmianę daty odniesienia. Wynik dla grafu zawierającego cykl powinien zostać oznaczony jako niewiarygodny, nawet jeżeli aplikacja potrafi go wyświetlić.
+
+Sprawdzenie zgodności z CPM nie oznacza potwierdzenia wykonalności zasobowej. Dwa zadania mogą być dopuszczone do realizacji równoległej przez graf, a jednocześnie wymagać tego samego wykonawcy.
+
+\subsection{Porównanie metod przydzielania}
+
+Heurystykę przydziałów można porównać z dwiema prostymi metodami:
+
+\begin{enumerate}
+    \item cyklicznym przydzielaniem kolejnych zadań członkom zespołu;
+    \item wyborem najmniejszego obciążenia względem pojemności, bez preferencji kompetencji.
+\end{enumerate}
+
+Każda metoda musi otrzymać ten sam zbiór nieprzypisanych zadań i ten sam początkowy stan zespołu. Istniejące przydziały powinny pozostać takie same we wszystkich wariantach.
+
+Dla względnego obciążenia \(u_j=L_j/C_j\) można obliczyć rozstęp:
+
+\begin{equation}
+    I_u=\max_j u_j-\min_j u_j.
+    \label{eq:testy-rozstep-obciazenia}
+\end{equation}
+
+Należy również podać liczbę przydzielonych zadań, udział przydziałów z dopasowaniem tekstowym kompetencji i liczbę naruszeń zdefiniowanych ograniczeń.
+
+Poprawność dopasowania kompetencji warto sprawdzić względem ręcznie opisanych wymagań zadań. Zgodność fragmentu tytułu z nazwą kompetencji jest właściwością heurystyki, a nie niezależną miarą merytorycznej poprawności wyboru.
+
+Porównanie obciążenia przed przydzieleniem i po nim wymaga ostrożności, ponieważ zwiększa się całkowity zakres przypisanej pracy. Podstawą oceny jakości powinno być porównanie metod po rozdzieleniu tego samego zakresu.
+
+Obecny algorytm nie optymalizuje terminów. Nie można zatem na podstawie samego zmniejszenia rozstępu obciążenia wnioskować o skróceniu projektu lub liczbie unikniętych dni opóźnienia.
+
+\section{Ocena estymacji kosztów}
+
+\subsection{Kompletność i spójność}
+
+Pierwszy etap oceny dotyczy odpowiedzi jako danych aplikacyjnych. Należy sprawdzić możliwość jej odczytania, kompletność scenariuszy, zgodność ról i stawek oraz nieujemność godzin i kosztów.
+
+Dla każdej pozycji pracy należy ponownie obliczyć iloczyn godzin i stawki. Osobno trzeba zweryfikować sumy oraz powiązanie pozycji kosztowych z poszczególnymi scenariuszami.
+
+Udział odpowiedzi spełniających wszystkie zdefiniowane warunki można wyrazić jako:
+
+\begin{equation}
+    V =
+    \frac{n_{\mathrm{valid}}}{n_{\mathrm{all}}},
+    \label{eq:testy-poprawnosc-estymacji}
+\end{equation}
+
+gdzie \(n_{\mathrm{valid}}\) oznacza liczbę poprawnych odpowiedzi, a \(n_{\mathrm{all}}\) wszystkie próby. Należy raportować wynik pierwszej próby oraz wynik po zastosowaniu dopuszczonego ponowienia.
+
+\subsection{Powtarzalność i trafność}
+
+Dla niezmienionego kontekstu należy wykonać ustaloną wcześniej liczbę niezależnych wywołań. Porównanie powinno obejmować koszt scenariusza realistycznego, rozkład godzin między role, założenia i rekomendacje.
+
+Względne zróżnicowanie kosztu można opisać współczynnikiem zmienności:
+
+\begin{equation}
+    CV=\frac{s_K}{\overline{K}},
+    \label{eq:testy-cv}
+\end{equation}
+
+gdzie \(s_K\) oznacza odchylenie standardowe, a \(\overline{K}>0\) średnią kosztów. Niska zmienność oznacza stabilność, lecz nie potwierdza trafności.
+
+Jeżeli dostępne są rzeczywiste koszty porównywalnego zakresu, można obliczyć względny błąd:
+
+\begin{equation}
+    E_K =
+    \frac{|\hat{K}-K|}{K},
+    \qquad K>0.
+    \label{eq:testy-blad-kosztu}
+\end{equation}
+
+Zakres i kategorie kosztów muszą być zgodne. Estymacji pozostałych prac nie należy porównywać bezpośrednio z całkowitym wydatkiem projektu obejmującym również prace zakończone.
+
+Przy braku danych rzeczywistych możliwe jest porównanie z niezależną estymacją ekspercką lub szczegółową kalkulacją scenariusza. Wynik należy wtedy określać jako zgodność z przyjętym odniesieniem, a nie trafność względem kosztu rzeczywistego.
+
+\subsection{Ocena rekomendacji redukcji}
+
+Rekomendacje powinny być oceniane pod względem związku z backlogiem, wykonalności, wpływu na cel projektu i wiarygodności oszczędności.
+
+Należy sprawdzić, czy propozycje nie dublują tego samego efektu i czy ograniczenie kosztu nie wymaga jednocześnie pominiętych wydatków.
+
+Zapisanie wyboru redukcji w aplikacji nie jest dowodem uzyskania oszczędności. Potwierdzenie efektu wymaga realizacji zmiany i porównania kosztów w zgodnym zakresie.
+
+\section{Ocena wydajności i odporności na błędy}
+
+Pomiary wydajności powinny rozróżniać zwykłe żądania API od analiz asynchronicznych. Dla operacji analitycznej należy osobno mierzyć czas przyjęcia zlecenia, oczekiwania w kolejce, obliczeń i udostępnienia wyniku użytkownikowi.
+
+Dla modelu językowego potrzebne jest dodatkowo oddzielenie czasu komunikacji z usługą zewnętrzną od czasu lokalnego przetwarzania.
+
+Wyniki należy raportować dla określonego rozmiaru projektu i obciążenia. Oprócz średniej użyteczne są mediana, percentyl 95 i odsetek błędów. Progi akceptacji należy ustalić przed analizą wyników.
+
+Scenariusze odporności powinny obejmować niedostępność modelu, niepoprawną odpowiedź, błąd zapisu i przerwanie wykonania zadania. Należy sprawdzić, czy użytkownik otrzymuje jednoznaczną informację oraz czy wcześniejsze poprawne dane pozostają możliwe do odczytania.
+
+Ocenie podlega również możliwość odróżnienia wyniku aktualnego od starszego. W przypadku niepowodzenia nowej analizy prezentowanie wcześniejszego rezultatu bez oznaczenia jego daty może prowadzić do błędnej interpretacji.
+
+\section{Prezentacja wyników i zagrożenia dla ich wiarygodności}
+
+Wyniki testów powinny zawierać liczbę przypadków wykonanych, zakończonych poprawnie, zakończonych błędem i pominiętych. Należy wskazać wersję aplikacji oraz odnośnik lub identyfikator raportu.
+
+Dla eksperymentów porównawczych trzeba podać dane wejściowe, metodę bazową, miary, liczbę powtórzeń i rozrzut wyników. Należy uwzględnić także scenariusze, w których PlanWise uzyskał wynik gorszy lub nie przygotował poprawnej rekomendacji.
+
+% DO UZUPEŁNIENIA PO WYKONANIU:
+% 1. Raport testów automatycznych.
+% 2. Wyniki scenariuszy funkcjonalnych i kontroli dostępu.
+% 3. Porównanie heurystyki ryzyka z metodą bazową.
+% 3a. Weryfikacja mechanizmu rejestrowania danych uczących
+%     oraz charakterystyka zgromadzonego zbioru.
+% 4. Analiza wrażliwości rankingu.
+% 5. Porównanie metod przydziału.
+% 6. Spójność, zmienność i błędy estymacji kosztów.
+% 7. Pomiary czasu odpowiedzi i analizy niepowodzeń.
+
+Podstawowym zagrożeniem dla wiarygodności jest wykorzystanie danych syntetycznych odzwierciedlających założenia ocenianego algorytmu. Kolejnym jest mała liczba projektów lub ocen ekspertów, ograniczająca możliwość uogólnienia.
+
+W analizach historycznych należy uwzględnić zmiany terminów i zakresu oraz wykluczyć wykorzystanie informacji niedostępnych w chwili prognozy. W badaniu modelu językowego znaczenie mają wersja modelu, konfiguracja i sposób przygotowania kontekstu.
+
+Wspomaganie decyzji można dodatkowo ocenić w badaniu użytkowników, mierząc czas wykonania zadania decyzyjnego, liczbę przeoczonych problemów i odsetek przyjętych rekomendacji. Sama deklaracja zadowolenia nie zastępuje jednak oceny poprawności decyzji.
+
+Na obecnym etapie analiza kodu pozwala wskazać zakres implementacji i jej ograniczenia, lecz nie potwierdza przewagi systemu nad metodami bazowymi. Weryfikacja tezy pracy wymaga uzupełnienia rozdziału o rzeczywiste wyniki opisanych badań i sformułowania wniosków odpowiadających uzyskanym danym.

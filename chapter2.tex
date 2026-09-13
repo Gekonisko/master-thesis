@@ -1,0 +1,314 @@
+\chapter{Podstawy zarządzania projektami i inteligentnego wspomagania decyzji}
+\label{chap:podstawy}
+
+Zaprojektowanie systemu wspierającego zarządzanie projektami wymaga określenia, jakie decyzje mają być wspomagane, na podstawie jakich danych oraz według jakich kryteriów można ocenić jakość proponowanych rozwiązań. Dane o zadaniach, terminach i członkach zespołu stanowią podstawę organizacji pracy, ale ich przydatność analityczna zależy od spójności modelu oraz właściwej interpretacji poszczególnych parametrów.
+
+W niniejszym rozdziale przedstawiono podstawy organizacji pracy projektowej, estymacji, harmonogramowania i oceny ryzyka. Następnie omówiono priorytetyzację wielokryterialną, optymalizację przydziału zasobów oraz wykorzystanie uczenia maszynowego i dużych modeli językowych. Zagadnienia te tworzą podstawę dla mechanizmów wspomagania decyzji rozwijanych w systemie PlanWise.
+
+
+\section{Specyfika zarządzania projektami informatycznymi}
+\label{sec:specyfika-projektow}
+
+Na potrzeby pracy projekt informatyczny rozumiany jest jako ograniczone w czasie przedsięwzięcie prowadzące do wytworzenia lub zmiany rozwiązania informatycznego. Jego realizacja wymaga określenia celu, zakresu, odpowiedzialności uczestników oraz sposobu oceny rezultatów. Zarządzanie takim projektem obejmuje zarówno planowanie, jak i bieżące dostosowywanie działań do aktualnego stanu prac.
+
+Przedmiotem planowania są wzajemnie zależne wielkości: zakres funkcjonalny, czas realizacji, koszty i dostępne zasoby. Rozszerzenie zakresu może zwiększyć zapotrzebowanie na pracę, natomiast ograniczona dostępność specjalisty może przesunąć termin wykonania zadania i rozpoczęcia prac od niego zależnych. Ocena pojedynczego parametru bez uwzględnienia pozostałych może zatem prowadzić do niepełnych wniosków.
+
+Istotną cechą rozpatrywanych projektów jest stopniowe doprecyzowywanie rozwiązania. Opis funkcji dostępny na początku przedsięwzięcia może nie zawierać wszystkich wymagań technicznych, integracyjnych i jakościowych. W trakcie implementacji pojawiają się nowe informacje, które wpływają na oszacowania i kolejność prac. Harmonogram należy więc traktować jako model oparty na aktualnej wiedzy, podlegający weryfikacji wraz ze zmianą tej wiedzy.
+
+Dla potrzeb systemu wspomagania decyzji użyteczne jest rozróżnienie trzech poziomów informacji. Pierwszy obejmuje dane opisowe, takie jak statusy, terminy i wykonawcy zadań. Drugi obejmuje wyniki analizy, na przykład wykryte blokady i ocenę obciążenia zespołu. Trzeci zawiera rekomendacje działania, takie jak zmiana kolejności prac lub proponowany przydział zadania. Przejście pomiędzy tymi poziomami wymaga jawnego określenia reguł i założeń.
+
+W PlanWise przyjęto, że wspomaganie decyzji powinno korzystać z danych powstających podczas codziennej pracy zespołu. Pozwala to powiązać rekomendacje z konkretnymi zadaniami i osobami, a następnie przedstawić użytkownikowi informacje umożliwiające ocenę zasadności proponowanej zmiany.
+
+
+\section{Organizacja pracy z wykorzystaniem backlogu, sprintów i tablicy Kanban}
+\label{sec:backlog-sprinty-kanban}
+
+Backlog umożliwia uporządkowanie prac oczekujących na realizację. W Scrumie Product Backlog jest rozwijającą się, uporządkowaną listą elementów potrzebnych do doskonalenia produktu. Za jego efektywne zarządzanie odpowiada Product Owner. Sprint stanowi wydarzenie o stałej długości, nieprzekraczającej miesiąca, podczas którego zespół pracuje nad określonym celem. Sprint Backlog obejmuje cel sprintu, wybrane elementy Product Backlogu oraz plan ich dostarczenia. Scrum wyróżnia odpowiedzialności Product Ownera, Scrum Mastera i Developers; nie definiuje odrębnej odpowiedzialności kierownika projektu. Dlatego roli tej, występującej w PlanWise, nie należy automatycznie utożsamiać z którąkolwiek z odpowiedzialności Scrum.\footnote{K.~Schwaber, J.~Sutherland, \textit{The Scrum Guide}, 2020, \url{https://scrumguides.org/scrum-guide.html}.}
+
+W projektowanym systemie backlog stanowi także zbiór danych dla analizy priorytetów i kosztów. Element pracy może posiadać opis, wartość biznesową, oszacowanie złożoności, zależności oraz termin. Przypisanie do sprintu określa kontekst planowanej realizacji, natomiast status informuje o bieżącym stanie zadania.
+
+Kanban koncentruje się na przepływie pracy. Obejmuje zdefiniowanie i wizualizację procesu, aktywne zarządzanie elementami pracy oraz doskonalenie przepływu. Istotnym elementem jest kontrolowanie liczby prac rozpoczętych i niezakończonych, określanej jako \textit{Work in Progress} (WIP). Do podstawowych miar należą WIP, przepustowość, wiek rozpoczętego elementu oraz czas jego realizacji. Sama tablica ze statusami nie stanowi jeszcze pełnego zastosowania Kanban.\footnote{\textit{The Kanban Guide}, maj 2025, \url{https://kanbanguides.org/the-kanban-guide/2025.5/}.}
+
+Wizualizacja w kolumnach, takich jak ,,Do wykonania'', ,,W trakcie'' i ,,Zakończone'', pomaga rozpoznać rozmieszczenie pracy w procesie. Z punktu widzenia analizy opóźnień szczególnie użyteczne są informacje o czasie wejścia zadania do poszczególnych stanów. Bieżący status nie pozwala samodzielnie ustalić, czy zadanie realizowane jest sprawnie, czy pozostaje zablokowane od dłuższego czasu.
+
+Backlog, sprint i tablica pełnią zatem uzupełniające się funkcje: opisują planowane prace, organizują ich realizację w określonym przedziale czasu oraz przedstawiają aktualny przepływ.
+
+
+\section{Estymacja pracochłonności i planowanie zasobów zespołu}
+\label{sec:estymacja-pracochlonnosci}
+
+W przyjętym modelu pojęciowym rozróżnia się pracochłonność, czas trwania oraz względny rozmiar zadania. Pracochłonność oznacza nakład pracy, który można wyrazić w roboczogodzinach. Czas trwania określa odstęp pomiędzy rozpoczęciem i zakończeniem zadania. Względny rozmiar służy natomiast porównywaniu zadań według przyjętej przez zespół skali.
+
+Rozróżnienie to jest istotne dla harmonogramowania. Zadanie wymagające ośmiu roboczogodzin nie musi zostać zakończone w ciągu jednego dnia kalendarzowego. Wykonawca może być dostępny tylko przez część dnia, oczekiwać na wynik innego zadania albo dzielić czas pomiędzy kilka obowiązków.
+
+Przy uproszczonym założeniu stałej dostępności czas realizacji można oszacować jako:
+\begin{equation}
+    d_i = \frac{e_i}{a_j},
+    \qquad a_j > 0,
+    \label{eq:czas-realizacji}
+\end{equation}
+gdzie \(d_i\) oznacza liczbę dni pracy potrzebnych do realizacji zadania \(i\), \(e_i\) --- pracochłonność w godzinach, a \(a_j\) --- liczbę godzin dziennie dostępnych u wykonawcy \(j\). Zależność ta pomija między innymi oczekiwanie, dni wolne i zmienność tempa pracy.
+
+W przypadku estymacji punktowej konieczne jest odrębne określenie sposobu powiązania punktów z czasem. Przyjęcie jednego punktu jako jednego dnia jest założeniem modelu, które wymaga uzasadnienia i oceny. Bez odpowiednich danych nie należy traktować takiego przelicznika jako właściwości samej skali punktowej.
+
+Planowanie zasobów wymaga także jednoznacznego zdefiniowania pojemności zespołu. Jeżeli pojemność wyrażana jest w godzinach tygodniowo, obciążenie powinno dotyczyć tego samego tygodnia i tej samej jednostki. Zestawienie wszystkich punktów przypisanych pracownikowi z jego dostępnością dzienną nie daje bezpośrednio interpretowalnej miary wykorzystania zasobu.
+
+Dla ustalonego okresu względne obciążenie można przedstawić jako:
+\begin{equation}
+    u_j = \frac{L_j}{C_j},
+    \qquad C_j > 0,
+    \label{eq:wzgledne-obciazenie}
+\end{equation}
+gdzie \(L_j\) oznacza planowany nakład pracy, a \(C_j\) --- dostępną pojemność. Wartość większa od jedności wskazuje na przekroczenie pojemności w przyjętym modelu. Porównanie tych wartości pomiędzy pracownikami może wspierać rozdział zadań, o ile uwzględniono również kompetencje i ograniczenia terminowe.
+
+
+\section{Zależności między zadaniami, wykres Gantta i metoda ścieżki krytycznej}
+\label{sec:sciezka-krytyczna}
+
+Zależności można opisać grafem skierowanym, którego wierzchołki reprezentują zadania, a krawędzie --- wymaganą kolejność. Dla zależności koniec--początek następnik może rozpocząć się po zakończeniu poprzednika. W podstawowym modelu CPM graf zależności musi być acykliczny; cykl uniemożliwia ustalenie kolejności zgodnej ze wszystkimi powiązaniami.
+
+Wykres Gantta przedstawia zadania jako przedziały na osi czasu. Metoda ścieżki krytycznej, CPM (ang.~\textit{Critical Path Method}), pozwala dodatkowo obliczać najwcześniejsze i najpóźniejsze terminy oraz zapas czasu. Wiarygodny harmonogram wymaga poprawnego odwzorowania działań, zależności i czasów trwania.\footnote{U.S.~Government Accountability Office, \textit{Schedule Assessment Guide: Best Practices for Project Schedules}, GAO-16-89G, 2015, \url{https://www.gao.gov/products/gao-16-89g}.}
+
+Dla czasu trwania \(d_i\) i niepustego zbioru poprzedników \(\operatorname{Pred}(i)\):
+\begin{equation}
+    ES_i = \max_{j \in \operatorname{Pred}(i)} EF_j,
+    \qquad
+    EF_i = ES_i + d_i,
+    \label{eq:cpm-przejscie-w-przod}
+\end{equation}
+gdzie \(ES_i\) i \(EF_i\) oznaczają najwcześniejszy początek i koniec zadania. Dla zadania bez poprzedników przyjmuje się początek projektu.
+
+Obliczenia wsteczne wykorzystują niepusty zbiór następników \(\operatorname{Succ}(i)\):
+\begin{equation}
+    LF_i = \min_{k \in \operatorname{Succ}(i)} LS_k,
+    \qquad
+    LS_i = LF_i - d_i,
+    \label{eq:cpm-przejscie-wstecz}
+\end{equation}
+gdzie \(LS_i\) i \(LF_i\) oznaczają najpóźniejszy początek i koniec niewydłużające projektu. Dla zadania końcowego przyjmuje się obliczony termin zakończenia projektu.
+
+Całkowity zapas czasu wynosi:
+\begin{equation}
+    TF_i = LS_i - ES_i.
+    \label{eq:cpm-zapas-czasu}
+\end{equation}
+
+W podstawowym modelu zadania o zerowym zapasie należą do ścieżek krytycznych. CPM nie rozwiązuje jednak konfliktów zasobowych: prace dopuszczone do wykonania równolegle mogą wymagać tego samego wykonawcy.
+
+
+\section{Ocena ryzyka i prognozowanie opóźnień}
+\label{sec:ocena-ryzyka}
+
+Na potrzeby pracy ryzyko opóźnienia oznacza możliwość przekroczenia określonego terminu. Należy odróżnić je od opóźnienia już stwierdzonego. Informacja, że termin zadania minął, opisuje aktualny stan, natomiast prognoza dotyczy wyniku, który w chwili jej sporządzania nie jest jeszcze znany.
+
+Przed zbudowaniem mechanizmu predykcji trzeba określić zdarzenie docelowe. Może nim być niedostarczenie zadania do terminu, niewykonanie zakresu sprintu albo przekroczenie daty zakończenia projektu. Są to różne problemy, wymagające odmiennych danych i kryteriów oceny.
+
+Prosta ocena heurystyczna może przyjmować postać:
+\begin{equation}
+    R_i = \sum_{k=1}^{m} w_k f_k(i),
+    \label{eq:heurystyczna-ocena-ryzyka}
+\end{equation}
+gdzie \(f_k(i)\) opisuje występowanie lub natężenie czynnika ryzyka, a \(w_k\) określa jego wagę. Przykładowymi czynnikami są otwarte zależności blokujące, brak wykonawcy, duży zakres lub krótki czas do terminu.
+
+Wagi mogą zostać ustalone projektowo. Uzyskany wynik stanowi wtedy wskaźnik porządkowy, którego znaczenie zależy od konstrukcji reguł. Umieszczenie wyniku w przedziale od zera do jedności nie wystarcza, aby interpretować go jako prawdopodobieństwo. Taka interpretacja wymaga sprawdzenia zgodności prognoz z częstością rzeczywistych zdarzeń.
+
+Prognoza może również określać liczbę dni opóźnienia lub rozkład terminu zakończenia. W tym drugim przypadku można posługiwać się kwantylami. Jeżeli \(T\) jest losowym terminem dostarczenia, kwantyl rzędu \(p\) definiuje się jako:
+\begin{equation}
+    q_p = \inf\left\{t : P(T \leq t) \geq p\right\},
+    \qquad 0 < p < 1.
+    \label{eq:kwantyl-terminu}
+\end{equation}
+
+Termin P90 odpowiada więc poziomowi \(p = 0{,}9\) w przyjętym rozkładzie. Pomnożenie pojedynczej estymacji przez stały współczynnik daje wariant scenariuszowy, lecz samo w sobie nie wyznacza kwantyla.
+
+Dla PlanWise istotne jest zatem oddzielenie wskaźników heurystycznych, wariantów scenariuszowych i prognoz probabilistycznych. Każda z tych form może być przydatna, ale wymaga innego sposobu opisu i weryfikacji.
+
+
+\section{Wielokryterialna priorytetyzacja zadań}
+\label{sec:priorytetyzacja-zadan}
+
+Priorytetyzacja polega na ustaleniu kolejności rozpatrywania lub realizacji prac. W modelu przyjętym dla PlanWise zadania oceniane są według wartości biznesowej, zależności, złożoności i ryzyka. Kryteria te mogą wskazywać różne kierunki działania: duża wartość przemawia za wcześniejszą realizacją, natomiast wysoka pracochłonność oznacza większe zapotrzebowanie na zasoby.
+
+Jednym ze sposobów agregacji jest ważona suma ocen:
+\begin{equation}
+    S_i =
+    w_v V_i +
+    w_d D_i +
+    w_c(1 - C_i) +
+    w_r R_i,
+    \label{eq:ocena-priorytetu}
+\end{equation}
+przy założeniu:
+\begin{equation}
+    w_v + w_d + w_c + w_r = 1,
+    \qquad
+    w_v, w_d, w_c, w_r \geq 0.
+    \label{eq:ograniczenia-wag}
+\end{equation}
+
+Wielkości \(V_i\), \(D_i\), \(C_i\) i \(R_i\) oznaczają znormalizowane oceny wartości, zależności, złożoności i ryzyka. Składnik \(1 - C_i\) preferuje zadania mniej złożone. Dodatnia waga ryzyka wyraża decyzję, aby wcześniej podejmować prace wymagające ograniczenia niepewności.
+
+Jest to określona polityka planowania, a nie jedyna możliwa interpretacja ryzyka. W innym kontekście wysokie ryzyko może uzasadniać odroczenie zadania lub podzielenie go na etap rozpoznawczy i wykonawczy. Znaczenie wag powinno być więc powiązane z celem rekomendacji.
+
+Agregowanie ocen wymaga porównywalnych skal. Przykładowo wartość biznesową można odnieść do największej wartości w analizowanym backlogu:
+\begin{equation}
+    V_i = \frac{v_i}{\max_j v_j}.
+    \label{eq:normalizacja-wartosci}
+\end{equation}
+
+Dla nieujemnych danych i dodatniego mianownika wynik mieści się w przedziale od zera do jedności. Normalizacja względem bieżącego zbioru sprawia jednak, że dodanie nowego zadania może zmienić oceny pozostałych elementów. Konieczne jest również określenie sposobu postępowania z brakującymi wartościami i przypadkiem zerowego mianownika.
+
+Ranking nie jest jeszcze wykonalnym harmonogramem. Zadanie o najwyższej ocenie może wymagać ukończenia poprzednika. Dlatego system powinien rozróżniać priorytet biznesowy od gotowości do rozpoczęcia pracy.
+
+Ocena mechanizmu powinna obejmować analizę wrażliwości na wagi, wpływ brakujących danych i stabilność rankingu. Pozwala to ustalić, czy niewielka zmiana założeń prowadzi do istotnej zmiany rekomendacji.
+
+
+\section{Metody optymalizacji harmonogramu i przydziału zasobów}
+\label{sec:optymalizacja-harmonogramu}
+
+Optymalizacja wymaga zdefiniowania zmiennych decyzyjnych, ograniczeń oraz funkcji celu. W problemie projektowym zmiennymi mogą być wykonawca zadania i termin rozpoczęcia. Ograniczenia opisują między innymi zależności, dostępność i wymagane kompetencje. Funkcja celu może dotyczyć zakończenia projektu, opóźnień lub rozkładu obciążenia.
+
+Przykładem formalnego problemu harmonogramowania jest \textit{job shop}, w którym operacje podlegają ograniczeniom kolejności oraz dostępności maszyn. Jednym z celów jest minimalizacja czasu zakończenia wszystkich prac, określanego jako \textit{makespan}. Jest to użyteczny punkt odniesienia dla modelowania, choć zasoby ludzkie wymagają dodatkowych założeń dotyczących kompetencji i sposobu wykonywania pracy.\footnote{Google, dokumentacja OR-Tools, \textit{The Job Shop Problem}, \url{https://developers.google.com/optimization/scheduling/job_shop}.}
+
+W uproszczonym modelu pojedynczego wykonawcy zmienna binarna może mieć postać:
+\begin{equation}
+    x_{ij} =
+    \begin{cases}
+        1, & \text{gdy zadanie \(i\) przypisano osobie \(j\)},\\
+        0, & \text{w przeciwnym przypadku}.
+    \end{cases}
+    \label{eq:zmienna-przydzialu}
+\end{equation}
+
+Warunek przypisania każdego zadania dokładnie jednej osobie zapisuje się jako:
+\begin{equation}
+    \sum_{j \in J} x_{ij} = 1,
+    \qquad \forall i \in I,
+    \label{eq:jeden-wykonawca}
+\end{equation}
+gdzie \(I\) oznacza zbiór zadań objętych przydziałem, a \(J\) --- zbiór rozpatrywanych wykonawców.
+
+Ograniczenie nakładu pracy w ustalonym okresie można wyrazić następująco:
+\begin{equation}
+    \sum_{i \in I} e_i x_{ij} \leq C_j,
+    \qquad \forall j \in J,
+    \label{eq:ograniczenie-pojemnosci}
+\end{equation}
+gdzie \(e_i\) oznacza pracochłonność zadania, a \(C_j\) --- pojemność wykonawcy w tym okresie. Wielkości te muszą być wyrażone w zgodnych jednostkach.
+
+Ograniczenie to nie zastępuje szczegółowej kontroli nakładania się zadań w czasie. Model zawierający konkretne terminy wymaga dodatkowych ograniczeń kalendarzowych.
+
+Możliwe jest również połączenie kilku celów:
+\begin{equation}
+    \min F = \alpha T + \beta O + \gamma B,
+    \label{eq:funkcja-celu}
+\end{equation}
+gdzie \(T\) oznacza czas zakończenia, \(O\) --- miarę opóźnień, a \(B\) --- nierównomierność obciążenia. Współczynniki \(\alpha\), \(\beta\) i \(\gamma\) powinny uwzględniać znaczenie i skale składników. W przeciwnym razie dominacja jednego kryterium może wynikać wyłącznie z jednostki pomiaru.
+
+Praktycznym podejściem jest algorytm zachłanny: zadania rozpatruje się w określonej kolejności, a dla każdego wybiera wykonawcę najlepszego według lokalnej reguły. Takie rozwiązanie może być szybkie i łatwe do wyjaśnienia, ale lokalnie korzystny wybór nie gwarantuje najlepszego przydziału całego zbioru.
+
+Przy opisie PlanWise należy zatem odróżnić wyznaczanie harmonogramu od równoważenia przydziału pracy. Zmiana wykonawców bez przeliczenia terminów nie stanowi dowodu skrócenia projektu.
+
+
+\section{Uczenie maszynowe w analizie danych projektowych}
+\label{sec:uczenie-maszynowe}
+
+Uczenie maszynowe pozwala wyznaczać parametry modelu na podstawie przykładów. W odróżnieniu od heurystyki o ręcznie ustalonych wagach model uczony dopasowuje zależności pomiędzy cechami wejściowymi i wynikiem docelowym.
+
+Dla zadań projektowych można rozpatrywać dwa podstawowe sformułowania. Klasyfikacja przewiduje kategorię, na przykład wystąpienie opóźnienia. Regresja przewiduje wartość liczbową, taką jak czas realizacji. Wybór powinien wynikać z decyzji, którą ma wspierać prognoza.
+
+Zbiór uczący można zapisać jako:
+\begin{equation}
+    D = \left\{(\mathbf{x}_i, y_i)\right\}_{i=1}^{n},
+    \label{eq:zbior-uczacy}
+\end{equation}
+gdzie \(\mathbf{x}_i\) zawiera cechy dostępne w chwili prognozowania, a \(y_i\) opisuje późniejszy wynik. Potencjalne cechy obejmują rozmiar zadania, liczbę otwartych poprzedników, czas do terminu i obciążenie wykonawcy.
+
+Warunkiem rzetelnej oceny jest niedopuszczenie do wycieku danych. Informacje ze zbioru testowego nie powinny wpływać na uczenie ani przygotowanie cech. Dotyczy to również takich operacji jak uzupełnianie braków i skalowanie, których parametry należy dopasowywać na danych uczących.\footnote{Dokumentacja scikit-learn, \textit{Common pitfalls and recommended practices}, \url{https://scikit-learn.org/stable/common_pitfalls.html}.}
+
+W analizie projektowej szczególnego znaczenia nabiera czas. Data faktycznego zakończenia może służyć do ustalenia etykiety, ale nie może być cechą prognozy sporządzanej przed zakończeniem zadania. Podobnie bieżący stan danych nie musi odpowiadać stanowi znanemu w dniu historycznej prognozy. Z tego względu potrzebne są odpowiednio odtworzone obserwacje lub migawki danych.
+
+\subsection*{Prospektywne gromadzenie danych uczących}
+
+Rozróżnienie to prowadzi do istotnego wniosku projektowego. System zarządzania zadaniami przechowuje zwykle wyłącznie stan bieżący: aktualny status, aktualny termin i aktualnego wykonawcę. Historia zmian tych wartości, jeżeli nie jest zapisywana jawnie, nie może zostać odtworzona po fakcie. Nie da się zatem ustalić wstecz, ilu niezakończonych poprzedników miało zadanie trzy tygodnie wcześniej ani jak obciążony był wówczas jego wykonawca.
+
+Zbioru uczącego dla predykcji opóźnień nie można w konsekwencji zbudować retrospektywnie. Może on być wyłącznie akumulowany prospektywnie, czyli od momentu uruchomienia rejestrowania. Wektor cech niezapisany w danym dniu jest trwale utracony. Decyzja o gromadzeniu danych musi więc poprzedzać decyzję o wyborze modelu, a nie następować po niej.
+
+Prowadzi to również do wymagania wobec samego procesu zapisu. Cechy powinny być rejestrowane w postaci surowej, to znaczy bez wcześniejszego ważenia, progowania ani agregowania przez metodę bazową. Zapisanie ocen wyznaczonych przez istniejącą heurystykę zamiast wielkości źródłowych oznaczałoby przeniesienie jej założeń do danych, na których ma być uczony jej następca. Model odtwarzałby wtedy opinie heurystyki, a nie zależności obecne w projekcie.
+
+\subsection*{Obserwacje cenzurowane i podział zbioru}
+
+Etykietowanie obserwacji w projekcie w toku napotyka dodatkową trudność. W chwili oceny część zadań jest już zakończona, część pozostaje otwarta przed terminem, a część jest otwarta po terminie. Tylko pierwsza grupa pozwala wyznaczyć dokładną wartość opóźnienia.
+
+Zadanie otwarte i przeterminowane dostarcza informacji niepełnej: wiadomo, że opóźnienie wystąpiło, lecz znana jest jedynie jego dolna granica. Jest to obserwacja cenzurowana prawostronnie. Potraktowanie takiej wartości jako dokładnej prowadziłoby do systematycznego zaniżania prognozowanego opóźnienia, ponieważ zadania najdłużej opóźnione byłyby zapisywane z wartościami zmierzonymi przed ich faktycznym zakończeniem. Zadanie otwarte przed terminem nie dostarcza natomiast żadnej informacji o wyniku i powinno pozostać nieetykietowane do czasu rozstrzygnięcia.
+
+Osobnym zagadnieniem jest struktura zależności między obserwacjami. Jeżeli prognoza jest sporządzana wielokrotnie dla tego samego zadania, powstaje kilka przykładów uczących dzielących ostatecznie jedną etykietę wyniku. Obserwacje te nie są niezależne. Losowy podział na zbiór uczący i testowy umieściłby różne migawki tego samego zadania po obu stronach, co prowadziłoby do zawyżonej oceny jakości. Podział powinien zatem grupować obserwacje według zadania, a dodatkowo uwzględniać porządek czasowy, aby model nie był oceniany na zdarzeniach wcześniejszych niż te, na których był uczony.
+
+Dla klasyfikacji opóźnień można wykorzystać precyzję i czułość:
+\begin{equation}
+    \operatorname{Precision} = \frac{TP}{TP + FP},
+    \qquad
+    \operatorname{Recall} = \frac{TP}{TP + FN},
+    \label{eq:precyzja-czulosc}
+\end{equation}
+gdzie \(TP\) oznacza poprawnie wykryte opóźnienia, \(FP\) --- fałszywe alarmy, a \(FN\) --- pominięte opóźnienia. Czułość opisuje zdolność wykrywania problemów, natomiast precyzja wskazuje, jaka część alarmów była uzasadniona. Przypadki zerowych mianowników wymagają ustalonej konwencji obliczeniowej.
+
+Dla prognozy liczbowej przykładową miarą jest średni błąd bezwzględny:
+\begin{equation}
+    \operatorname{MAE} =
+    \frac{1}{n}
+    \sum_{i=1}^{n}
+    \left|y_i - \hat{y}_i\right|,
+    \label{eq:mae}
+\end{equation}
+gdzie \(y_i\) oznacza wartość rzeczywistą, \(\hat{y}_i\) --- wartość przewidywaną, a \(n\) --- liczbę ocenianych obserwacji.
+
+Ocena powinna obejmować porównanie z prostą metodą bazową. Złożoność modelu nie stanowi samodzielnego uzasadnienia jego zastosowania. W PlanWise takim punktem odniesienia może być istniejąca punktowa ocena ryzyka.
+
+
+\section{Duże modele językowe w estymacji kosztów}
+\label{sec:llm-estymacja-kosztow}
+
+Duży model językowy może zostać wykorzystany do przetwarzania opisów wymagań i zadań zapisanych w języku naturalnym. W rozpatrywanym zastosowaniu jego rolą jest przygotowanie oszacowania nakładu pracy oraz wskazanie założeń na podstawie przekazanego kontekstu projektowego.
+
+Dla PlanWise przyjęto kontekst obejmujący backlog, opisy zadań, priorytety oraz role i stawki zespołu. Rozdzielenie danych dostarczonych przez użytkownika od wartości szacowanych przez model pozwala ustalić pochodzenie poszczególnych elementów kosztorysu. Stawka godzinowa pochodząca z konfiguracji projektu nie powinna być zastępowana wartością wymyśloną przez model.
+
+Koszt pracy można obliczać według zależności:
+\begin{equation}
+    K_{\mathrm{pracy}} = \sum_{r=1}^{m} h_r s_r,
+    \label{eq:koszt-pracy}
+\end{equation}
+gdzie \(h_r\) oznacza liczbę godzin dla roli \(r\), a \(s_r\) --- jej stawkę.
+
+Całkowity koszt scenariusza może dodatkowo obejmować koszty pozapłacowe i rezerwę:
+\begin{equation}
+    K =
+    K_{\mathrm{pracy}} +
+    K_{\text{pozapłacowe}} +
+    K_{\mathrm{rezerwa}}.
+    \label{eq:koszt-calkowity}
+\end{equation}
+
+Weryfikacja rachunkowa powinna odbywać się programowo. Nawet poprawnie ustrukturyzowana odpowiedź może zawierać niespójne sumy lub stawki niezgodne z wejściem.
+
+Warianty optymistyczny, realistyczny i pesymistyczny powinny wynikać z opisanych założeń, na przykład różnego nakładu poprawek lub stopnia niepewności integracji. Bez empirycznej podstawy nie należy przypisywać im interpretacji probabilistycznej. Deklaracja pewności wygenerowana przez model również wymaga odrębnej oceny.
+
+Znaczenie ma sposób przygotowania kontekstu. Liu i współautorzy wykazali w badanych zadaniach, że położenie istotnych informacji w długim wejściu wpływało na wyniki modeli. Badanie nie dotyczyło bezpośrednio estymacji kosztów, ale uzasadnia sprawdzanie wpływu długości i organizacji backlogu na odpowiedzi zastosowanego modelu.\footnote{N.~F.~Liu i in., \textit{Lost in the Middle: How Language Models Use Long Contexts}, Transactions of the Association for Computational Linguistics, t.~12, 2024, s.~157--173, \url{https://aclanthology.org/2024.tacl-1.9/}.}
+
+Ocena kosztorysu powinna obejmować trafność względem danych referencyjnych, powtarzalność, poprawność obliczeń oraz zgodność z zakresem. Rekomendacja redukcji kosztu wymaga ponadto wskazania konsekwencji: odroczenie funkcji może obniżyć koszt bieżącego zakresu, ale jednocześnie zmniejszyć dostarczaną wartość.
+
+
+\section{Wyjaśnialność rekomendacji i rola kierownika projektu}
+\label{sec:wyjasnialnosc-rekomendacji}
+
+Wyjaśnialność umożliwia użytkownikowi ocenę podstaw wyniku. NIST wyróżnia cztery zasady: dostarczenie wyjaśnienia, jego zrozumiałość dla odbiorcy, zgodność wyjaśnienia z procesem generowania wyniku oraz rozpoznawanie granic działania systemu. Wyjaśnienie powinno więc odpowiadać zarówno rzeczywistemu mechanizmowi, jak i potrzebom użytkownika.\footnote{P.~J.~Phillips i in., \textit{Four Principles of Explainable Artificial Intelligence}, NISTIR~8312, 2021, \url{https://www.nist.gov/publications/four-principles-explainable-artificial-intelligence}.}
+
+W przypadku heurystyki ważonej można pokazać czynniki i ich wkład w ocenę. Dla harmonogramu przydatne są zależności, czasy trwania i ograniczenia powodujące wyznaczenie określonego terminu. Dla przydziału zadań wyjaśnienie powinno wskazywać sposób porównania kompetencji i obciążenia kandydatów.
+
+Opis musi odpowiadać faktycznie zastosowanej metodzie. Jeżeli dopasowanie umiejętności opiera się na wyszukiwaniu nazw w tytule zadania, wynik nie powinien być przedstawiany jako pełna analiza kompetencji. Podobnie uzasadnienie kosztorysu wygenerowane przez LLM nie stanowi samodzielnego potwierdzenia jego trafności.
+
+Na potrzeby PlanWise użyteczna rekomendacja powinna identyfikować dane wejściowe, przyjęte założenia, proponowaną zmianę i ograniczenia. Pozwala to ocenić, czy wynik pozostaje aktualny po zmianie backlogu, dostępności pracownika lub terminu projektu.
+
+Kierownik projektu dysponuje także kontekstem, który może nie być zapisany w systemie. Dotyczy to na przykład ustaleń z interesariuszami, planowanych zmian organizacyjnych i znaczenia określonego terminu. Możliwość zatwierdzenia lub odrzucenia propozycji pozwala uwzględnić tę wiedzę.
+
+Rejestrowanie decyzji użytkownika może wspierać dalszą ocenę systemu, ale akceptacja nie jest równoznaczna z obiektywną poprawnością rekomendacji. Należy ją analizować łącznie z rezultatem realizacji prac. Tak rozumiane wspomaganie decyzji łączy obliczenia z oceną człowieka, zachowując możliwość prześledzenia podstaw podjętego działania.

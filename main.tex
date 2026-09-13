@@ -1,0 +1,183 @@
+\documentclass[12pt,a4paper]{aghdpl}
+
+% Ustawienia polskiego języka i kodowania
+\usepackage[utf8]{inputenc} % Obsługa polskich znaków w kodowaniu UTF-8
+\usepackage[T1]{fontenc}    % Kodowanie fontów z polskimi znakami
+\usepackage[polish]{babel}  % Wsparcie dla języka polskiego
+\usepackage{amsmath}
+
+\usepackage{minted}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{booktabs} % \toprule, \midrule, \addlinespace, \bottomrule w tabelach
+
+\usepackage{natbib}
+
+\lstdefinelanguage{TypeScript}{
+    keywords={break, case, catch, class, const, continue, debugger, default, delete, do, else, enum, export, extends, false, finally, for, function, if, import, in, instanceof, new, null, return, super, switch, this, throw, true, try, typeof, var, void, while, with, let, static, yield, async, await, from, as, readonly, public,implements},
+    sensitive=true,
+    comment=[l]//,
+    commentstyle=\color{gray}\ttfamily,
+    morecomment=[s]{/*}{*/},
+    morestring=[b]',
+    morestring=[b]",
+    morestring=[b]`,
+    stringstyle=\color{orange}\ttfamily,
+    identifierstyle=\ttfamily,
+    keywordstyle=\color{blue}\bfseries,
+    ndkeywordstyle=\color{teal}\bfseries,
+    numbers=none,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    showstringspaces=false,
+    tabsize=2,
+    breaklines=true,
+    breakatwhitespace=true,
+    basicstyle=\ttfamily\footnotesize,
+    morekeywords=[2]{inject, selectSignal, createSelector, createFeatureSelector, on, createReducer,props,emptyProps, createActionGroup, takeUntilDestroyed,subscribe,pipe, content-security-policy,cross-origin-embedder-policy,cross-origin-opener-policy,cross-origin-resource-policy }, % Wyróżnij funkcje
+    keywordstyle=[2]\color{purple}\bfseries, % Styl dla funkcji max, min, avg
+    morekeywords=[3]{Store, TasksComponent,Project, WebSocketResponseMessage,Subject, WebSocketResponseType,content-security-policy }, % Wyróżnij funkcje
+    keywordstyle=[3]\color{teal}\bfseries, % Styl dla funkcji max, min, avg
+}
+
+\lstdefinelanguage{HTML}{
+    sensitive=true, % Rozróżnianie wielkości liter
+    morecomment=[s]{<!--}{-->}, % Komentarze w HTML
+    commentstyle=\color{gray}\ttfamily, % Styl komentarzy
+    morestring=[b]", % Ciągi znaków w cudzysłowach
+    morestring=[b]', % Ciągi znaków w apostrofach
+    stringstyle=\color{orange}\ttfamily, % Styl ciągów znaków
+    identifierstyle=\color{black}, % Styl identyfikatorów
+    otherkeywords={% Lista znaczników HTML
+       <app-title>,</app-title>,<!DOCTYPE>, <html>, </html>, <head>, </head>, <body>, </body>, <title>, </title>,
+<meta>, <link>, <script>, </script>, <style>, </style>, <div>, </div>,
+<span>, </span>, <p>, </p>, <a>, </a>, <ul>, </ul>, <li>, </li>,
+<table>, </table>, <tr>, </tr>, <td>, </td>, <th>, </th>,
+<form>, </form>, <input>, <button>, </button>, <select>, </select>, <option>, </option>,
+<h1>, </h1>, <h2>, </h2>, <h3>, </h3>, <h4>, </h4>, <h5>, </h5>, <h6>, </h6>,
+<br>, <hr>, <img>, <iframe>, </iframe>, <canvas>, </canvas>, <svg>, </svg>,
+<audio>, </audio>, <video>, </video>, <source>, <footer>, </footer>,
+<header>, </header>, <main>, </main>, <section>, </section>, <article>, </article>,
+<nav>, </nav>, <aside>, </aside>, <details>, </details>, <summary>, </summary>
+    },
+    keywordstyle=\color{teal}\bfseries, % Styl znaczników HTML
+    morekeywords={<,>}, % Uznaj "<" i ">" za znaczniki
+    alsoletter={-}, % Uznaj "-" za część identyfikatorów
+    ndkeywordstyle=\color{red}, % Styl dla atrybutów
+    morekeywords=[2]{% Lista atrybutów HTML
+        projectName,id, class, style, src, href, alt, title, lang, dir, charset,
+        name, content, http-equiv, rel, type, media, target, download,
+        action, method, value, placeholder, disabled, checked, selected,
+        readonly, multiple, required, size, maxlength, minlength, pattern,
+        autocomplete, novalidate, accept, enctype, formaction, formenctype,
+        formmethod, formnovalidate, formtarget
+    },
+    ndkeywordstyle=\color{red}, % Styl dla atrybutów
+    basicstyle=\ttfamily\footnotesize, % Podstawowy styl
+    breaklines=true, % Łamanie linii
+    breakatwhitespace=true, % Łamanie na białych znakach
+    tabsize=2, % Rozmiar tabulatorów
+    showstringspaces=false % Nie pokazuj spacji w ciągach znaków
+}
+
+% Define SQL language for listings
+\renewcommand{\lstlistingname}{Przykład}% Listing -> Algorithm
+\lstdefinelanguage{SQL}{
+    morekeywords={
+        SELECT, FROM, WHERE, INSERT, INTO, UPDATE, DELETE, CREATE, DROP, ALTER, 
+        JOIN, INNER, LEFT, RIGHT, FULL, ON, GROUP, BY, ORDER, ASC, DESC, HAVING, 
+        DISTINCT, AS, IN, AND, OR, NOT, NULL, IS, LIKE, BETWEEN, UNION, ALL, 
+        LIMIT, OFFSET, EXISTS, CASE, WHEN, THEN, ELSE, END, PRIMARY, KEY, FOREIGN, 
+        CONSTRAINT, REFERENCES, INDEX, UNIQUE, DEFAULT, CHECK, VIEW, PROCEDURE,
+        FUNCTION, TRIGGER, DATABASE, TABLE, IF, BEGIN, END, EXEC, DECLARE, SET,
+        CAST, CONVERT, VALUES, TRANSACTION, COMMIT, ROLLBACK
+    },
+    sensitive=false, % SQL keywords are case-insensitive
+    morecomment=[l]{--}, % SQL single-line comments
+    morecomment=[s]{/*}{*/}, % SQL multi-line comments
+    morestring=[b]', % Single-quoted strings
+    morestring=[b]", % Double-quoted strings
+    keywordstyle=\color{blue}\bfseries, % Keywords in blue and bold
+    commentstyle=\color{gray}\itshape, % Comments in gray and italic
+    stringstyle=\color{red}, % Strings in red
+    basicstyle=\ttfamily, % Base font for the listing
+    breaklines=true, % Automatic line breaking
+    breakatwhitespace=true,
+    showstringspaces=false, % Do not show spaces in strings
+}
+
+% Opcjonalne pakiety
+\usepackage{geometry}       % Ustawienia marginesów
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+\usepackage{graphicx} %LaTeX package to import graphics
+\graphicspath{{images/}} %configuring the graphicx package
+
+\usepackage{titlesec}
+\setlength{\cftbeforesecskip}{0.3em}  % Mniejszy odstęp przed sekcjami
+\setlength{\cftbeforechapskip}{0.3em} % Mniejszy odstęp przed rozdziałami
+
+\author{Jakub Ocytko}
+\shortauthor{J. Ocytko}
+
+\titlePL{System inteligentnego wsparcia w~zarządzaniu projektami}
+\titleEN{Intelligent Decision Support System for Project Management}
+
+\shorttitlePL{System inteligentnego wsparcia w zarządzaniu projektami} % skrócona wersja tytułu jeśli jest bardzo długi
+\shorttitleEN{Intelligent Decision Support for Project Management}
+
+\thesistypePL{Praca dyplomowa magisterska}
+
+\supervisorPL{dr hab. inż. Piotr Pacyna, prof. AGH}
+
+\date{2026}
+
+\departmentPL{Instytut Telekomunikacji}
+
+\facultyPL{Wydział Elektrotechniki, Automatyki, Informatyki i Inżynierii Biomedycznej}
+
+\begin{document}
+
+\begin{center}
+\textbf{\large AKADEMIA GÓRNICZO-HUTNICZA} \\[0.2cm]
+\textbf{\large IM. STANISŁAWA STASZICA W KRAKOWIE} \\[1cm]
+
+\textbf{\Large Wydział Elektrotechniki, Automatyki, Informatyki i Inżynierii Biomedycznej} \\[0.5cm]
+
+\includegraphics[width=0.2\textwidth]{images/agh.jpg} \\[2cm]
+
+
+\textbf{\LARGE Praca dyplomowa magisterska} \\[1cm]
+
+\textbf{\large System inteligentnego wsparcia w zarządzaniu projektami}
+
+\vfill
+
+\begin{tabbing}
+\hspace{5cm} \= \kill
+\textbf{Autor:} \> Jakub Ocytko \\[0.1cm]
+\textbf{Kierunek studiów:} \> Informatyka i Systemy Inteligentne \\[0.1cm]
+\textbf{Opiekun pracy:} \> dr hab. inż. Piotr Pacyna, prof. AGH \\
+\end{tabbing}
+
+\textbf{Kraków, rok akademicki 2026/2027}
+\end{center}
+
+\tableofcontents % Automatycznie generowany spis treści
+\newpage
+
+\include{chapter1}
+\include{chapter2}
+\include{chapter3}
+\include{chapter4}
+\include{chapter5}
+\include{chapter6}
+\include{chapter7}
+\include{chapter8}
+
+\end{document}

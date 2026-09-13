@@ -1,0 +1,371 @@
+\chapter{Architektura i projekt systemu PlanWise}
+\label{chap:architektura}
+
+Architektura systemu PlanWise wynika z potrzeby połączenia funkcji organizacji pracy projektowej z mechanizmami wspomagania decyzji. Dane dotyczące zadań, członków zespołu i terminów są wykorzystywane zarówno podczas codziennej obsługi projektu, jak i przy obliczaniu ocen ryzyka, rekomendowaniu priorytetów, proponowaniu przydziałów oraz szacowaniu kosztów. Projekt systemu musi zatem umożliwiać współdzielenie potrzebnych informacji przy zachowaniu wyraźnego podziału odpowiedzialności.
+
+W niniejszym rozdziale przedstawiono architekturę aplikacji, zastosowane technologie oraz organizację części serwerowej i klienckiej. Omówiono podział na moduły, strukturę warstw, model komunikacji, sposób przechowywania danych oraz obsługę operacji wykonywanych w tle. Opis odnosi się do analizowanej implementacji PlanWise. Rozwiązania wymagające dalszej rozbudowy zostały odróżnione od mechanizmów występujących w kodzie.
+
+\section{Ogólna architektura systemu}
+
+PlanWise zaprojektowano jako aplikację internetową, w której interfejs użytkownika komunikuje się z częścią serwerową za pośrednictwem interfejsu HTTP API. Frontend odpowiada za prezentację danych i obsługę interakcji, natomiast backend realizuje przypadki użycia, kontroluje dostęp do zasobów, wykonuje obliczenia oraz zapisuje wyniki.
+
+W architekturze rozwiązania można wyróżnić cztery główne elementy:
+
+\begin{enumerate}
+    \item aplikację kliencką utworzoną w Angularze;
+    \item aplikację serwerową opartą na ASP.NET Core;
+    \item relacyjną bazę danych PostgreSQL;
+    \item zewnętrzną usługę modelu językowego wykorzystywaną do estymacji kosztów.
+\end{enumerate}
+
+Podstawowa komunikacja pomiędzy klientem a serwerem odbywa się przez żądania HTTP i odpowiedzi zawierające dane w formacie JSON. Dodatkowo zastosowano SignalR do przekazywania informacji o zmianach w projekcie i zakończeniu operacji analitycznych. Dzięki temu interfejs może reagować na działania innych użytkowników bez oczekiwania na ręczne odświeżenie strony.
+
+Część serwerowa działa jako jedna aplikacja zawierająca osiem modułów funkcjonalnych. Moduły współdzielą proces wykonawczy, lecz posiadają odrębne modele domenowe i konteksty dostępu do danych. Taki układ określono jako monolit modularny.
+
+Integracja z modelem językowym znajduje się po stronie serwera. Frontend inicjuje estymację i prezentuje jej rezultat, natomiast przygotowanie kontekstu, wywołanie usługi zewnętrznej i przetworzenie odpowiedzi należą do backendu. Klucz dostępu do dostawcy modelu nie jest zatem elementem konfiguracji aplikacji przeglądarkowej.
+
+Przyjęta architektura rozdziela również operacje wykonywane w ramach pojedynczego żądania od analiz obsługiwanych w tle. Utworzenie zadania wymaga zwykle bezpośredniej odpowiedzi, natomiast estymacja kosztów może zakończyć się dopiero po uzyskaniu odpowiedzi od zewnętrznego modelu.
+
+\section{Dobór technologii i uzasadnienie ich zastosowania}
+
+Część serwerową zaimplementowano w języku C\# z wykorzystaniem platformy .NET i ASP.NET Core. W analizowanej wersji projektu docelowe środowisko wykonawcze określono jako \texttt{net9.0}. ASP.NET Core wykorzystano do obsługi żądań HTTP, konfiguracji uwierzytelniania, rejestracji zależności oraz uruchamiania usług działających w tle.
+
+Wybór tej technologii odpowiada strukturze rozwiązania, w którym poszczególne przypadki użycia korzystają z wielu współpracujących komponentów. Mechanizm wstrzykiwania zależności pozwala powiązać interfejsy z ich implementacjami w konfiguracji aplikacji. Przykładowo moduł estymacji korzysta z abstrakcji modelu językowego, podczas gdy konkretna implementacja klienta HTTP jest rejestrowana w warstwie infrastruktury.
+
+Do komunikacji z bazą danych zastosowano Entity Framework Core oraz dostawcę Npgsql. Konteksty bazodanowe zawierają konfigurację encji, relacji, indeksów i ograniczeń. Migracje opisują kolejne zmiany struktury przechowywanych danych.
+
+PostgreSQL pełni funkcję wspólnego magazynu danych aplikacji. Rozdzielenie tabel pomiędzy schematy pozwala odwzorować granice modułów bez konieczności utrzymywania osobnego serwera bazodanowego dla każdego obszaru funkcjonalnego.
+
+Frontend opracowano w Angularze z wykorzystaniem języka TypeScript. Podział na komponenty, usługi i widoki funkcjonalne odpowiada strukturze interfejsu obejmującego między innymi backlog, tablicę zadań, harmonogram, zespół i analizy kosztów. W projekcie wykorzystano także Angular Material i Angular CDK oraz mechanizmy reaktywne udostępniane przez Angular i RxJS.
+
+Do kierowania komend i zapytań do odpowiednich procedur obsługi zastosowano bibliotekę MediatR. Walidację danych wejściowych wspiera FluentValidation. Dokumentacja interfejsu serwerowego jest udostępniana w środowisku deweloperskim z wykorzystaniem OpenAPI i interfejsu Scalar.
+
+Integrację z dużym modelem językowym zrealizowano za pomocą klienta HTTP komunikującego się z usługą Anthropic. Dostawca ten stanowi szczegół infrastrukturalny modułu estymacji. Pozostałe części aplikacji korzystają z ujednoliconego kontraktu wejścia i wyniku analizy.
+
+\section{Monolit modularny i granice odpowiedzialności}
+
+Podział aplikacji na moduły oparto na obszarach odpowiedzialności biznesowej. Zarządzanie tożsamością, obsługa zadań oraz estymacja kosztów dotyczą różnych reguł i danych, dlatego zostały rozdzielone na osobne części rozwiązania.
+
+Monolit modularny umożliwia zachowanie jednego procesu serwerowego przy jednoczesnym uporządkowaniu zależności wewnętrznych. W PlanWise oznacza to wspólne uruchamianie modułów, wspólną konfigurację aplikacji oraz komunikację wewnątrz procesu. Ogólne rozróżnienie pomiędzy fizyczną jednostką wdrożenia a logicznym podziałem aplikacji przedstawiono również w dokumentacji architektur aplikacji internetowych Microsoft.\footnote{Microsoft, \textit{Common web application architectures}, \url{https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures}, dostęp: 10.09.2026.}
+
+W analizowanym rozwiązaniu wyróżniono następujące moduły:
+
+\begin{itemize}
+    \item \texttt{IdentityAccess};
+    \item \texttt{WorkspaceManagement};
+    \item \texttt{Delivery};
+    \item \texttt{Scheduling};
+    \item \texttt{RiskPrediction};
+    \item \texttt{BacklogPrioritisation};
+    \item \texttt{CostEstimation};
+    \item \texttt{Notifications}.
+\end{itemize}
+
+Osobno wydzielono część \texttt{Common}, zawierającą współdzielone abstrakcje i mechanizmy techniczne. Nie stanowi ona kolejnego obszaru biznesowego. Jej zadaniem jest udostępnianie elementów potrzebnych w wielu modułach, takich jak reprezentacja wyniku operacji, kontrakty komunikacyjne, obsługa zadań asynchronicznych i mechanizmy przetwarzania zdarzeń.
+
+Istotną zasadą projektu jest ograniczenie bezpośrednich zależności pomiędzy modułami. Moduł analityczny powinien uzyskiwać potrzebne informacje przez określony kontrakt, zamiast korzystać z wewnętrznych encji i repozytoriów modułu zarządzającego zadaniami.
+
+Takie podejście pozwala zmieniać sposób przechowywania danych w jednym obszarze bez konieczności równoczesnego modyfikowania wszystkich jego odbiorców. Nie usuwa jednak zależności funkcjonalnych. Ocena ryzyka nadal wymaga danych o zadaniach, a estymacja kosztów zależy od backlogu i parametrów zespołu.
+
+W repozytorium znajdują się testy architektoniczne sprawdzające zależności pomiędzy warstwami oraz izolację modułów. Stanowią one mechanizm kontroli przyjętych reguł strukturalnych. Sama obecność tych testów nie jest jednak dowodem poprawności funkcjonalnej aplikacji.
+
+\section{Architektura warstwowa i elementy Domain-Driven Design}
+
+Każdy moduł podzielono na cztery projekty odpowiadające warstwom \texttt{Domain}, \texttt{Application}, \texttt{Infrastructure} i \texttt{Presentation}. Podział ten oddziela reguły dotyczące projektu i zadań od sposobu komunikacji z użytkownikiem oraz technicznych szczegółów przechowywania danych.
+
+\subsection{Warstwa domenowa}
+
+Warstwa \texttt{Domain} zawiera encje, zdarzenia domenowe, definicje błędów oraz wybrane interfejsy repozytoriów. Reprezentuje pojęcia występujące w danym obszarze funkcjonalnym.
+
+Przykładowo w module \texttt{Delivery} znajdują się obiekty \texttt{ProjectTask} i \texttt{Sprint}, a także podzadania, komentarze i powiązania pomiędzy zadaniami. W module zarządzania przestrzenią projektową występują projekt i członkowie zespołu.
+
+Zastosowane elementy Domain-Driven Design obejmują modelowanie pojęć biznesowych za pomocą encji, grupowanie odpowiedzialności w modułach oraz reprezentowanie istotnych zmian przez zdarzenia domenowe. Określenie to odnosi się do wybranych praktyk projektowych, a nie do deklaracji pełnego zastosowania wszystkich technik DDD.
+
+\subsection{Warstwa aplikacyjna}
+
+Warstwa \texttt{Application} realizuje przypadki użycia. Zawiera komendy, zapytania, procedury ich obsługi, walidatory oraz kontrakty usług zewnętrznych i infrastrukturalnych.
+
+Jej zadaniem jest koordynowanie operacji. Przykładowa procedura aktualizacji zadania odczytuje dane, sprawdza warunki wykonania, wywołuje odpowiednią zmianę i zleca zapis. Warstwa ta określa przebieg przypadku użycia, pozostawiając szczegóły komunikacji z bazą danych implementacjom infrastrukturalnym.
+
+W tej części znajdują się także algorytmy analityczne. Dzięki temu obliczenie oceny ryzyka lub rankingu może być rozpatrywane niezależnie od sposobu prezentacji wyniku w interfejsie.
+
+\subsection{Warstwa infrastruktury}
+
+Warstwa \texttt{Infrastructure} zawiera implementacje dostępu do danych, konfigurację Entity Framework Core, migracje oraz integracje z usługami zewnętrznymi. Odpowiada również za rejestrację usług danego modułu.
+
+Przykładem rozdzielenia odpowiedzialności jest interfejs \texttt{ICostEstimationModel}, zdefiniowany w warstwie aplikacyjnej, i jego implementacja \texttt{AnthropicCostEstimationModel}, umieszczona w infrastrukturze. Logika przypadku użycia operuje na typowanym kontekście estymacji i wyniku, podczas gdy implementacja infrastrukturalna przygotowuje żądanie HTTP i interpretuje odpowiedź dostawcy.
+
+\subsection{Warstwa prezentacji}
+
+Warstwa \texttt{Presentation} udostępnia punkty końcowe API. Przyjmuje dane żądania, tworzy komendę lub zapytanie i przekształca rezultat w odpowiedź HTTP.
+
+W tym znaczeniu prezentacja oznacza zewnętrzny interfejs modułu serwerowego. Graficzny interfejs użytkownika znajduje się w odrębnej aplikacji Angular.
+
+Podział warstw ogranicza zakres odpowiedzialności punktów końcowych. Obliczenia analityczne i reguły modyfikowania danych pozostają poza kodem definiującym adresy API.
+
+\section{Obsługa operacji z wykorzystaniem CQRS}
+
+W PlanWise zastosowano rozdzielenie operacji zmieniających dane od operacji odczytu. Komendy opisują zamiar wykonania zmiany, natomiast zapytania służą do pobierania informacji potrzebnych odbiorcy.
+
+Wzorzec CQRS dopuszcza wykorzystanie wspólnej bazy danych przez obie grupy operacji. Rozdzielenie odpowiedzialności nie wymaga zatem utrzymywania osobnych magazynów odczytu i zapisu.\footnote{Microsoft, \textit{Command Query Responsibility Segregation (CQRS) pattern}, \url{https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs}, dostęp: 10.09.2026.}
+
+W implementacji komendy obejmują między innymi utworzenie zadania, zmianę jego statusu, aktualizację wartości biznesowej i zmianę kolejności backlogu. Zapytania umożliwiają pobranie listy zadań, zawartości tablicy lub szczegółów wybranego elementu.
+
+Żądania są przekazywane przez MediatR do odpowiednich procedur obsługi. W konfiguracji zarejestrowano również wspólny potok obejmujący obsługę wyjątków, rejestrowanie żądań i walidację. Pozwala to umieścić powtarzalne czynności poza kodem poszczególnych przypadków użycia.
+
+Typowy przebieg operacji zapisu obejmuje:
+
+\begin{enumerate}
+    \item odebranie żądania przez punkt końcowy;
+    \item utworzenie komendy na podstawie danych wejściowych;
+    \item wykonanie wspólnych elementów potoku;
+    \item sprawdzenie warunków przypadku użycia;
+    \item zmianę danych i zapis;
+    \item przekształcenie wyniku w odpowiedź HTTP.
+\end{enumerate}
+
+Wyniki operacji są reprezentowane między innymi przez typy \texttt{Result} i \texttt{Result<T>}. Rozróżniają one poprawne wykonanie od błędu opisanego kodem, kategorią i komunikatem. Ułatwia to wspólne mapowanie błędów aplikacyjnych na odpowiedzi API.
+
+Przyjęte rozwiązanie jest implementacją rozdzielenia komend i zapytań na poziomie organizacji kodu oraz kontraktów. Nie opiera się na odtwarzaniu całego stanu aplikacji ze strumienia zdarzeń.
+
+\section{Podział systemu na moduły funkcjonalne}
+
+\subsection{Moduł IdentityAccess}
+
+Moduł \texttt{IdentityAccess} odpowiada za konta użytkowników i obsługę sesji. Obejmuje rejestrację, logowanie, odświeżanie sesji, wylogowanie i operacje związane z resetowaniem hasła.
+
+Oddzielenie tożsamości od danych projektowych pozwala powiązać jedno konto z wieloma projektami. Informacja o tym, kim jest użytkownik, pozostaje odrębna od informacji o jego uczestnictwie w konkretnym zespole.
+
+\subsection{Moduł WorkspaceManagement}
+
+Moduł \texttt{WorkspaceManagement} zarządza projektami oraz członkami zespołów. Przechowuje dane opisujące projekt, jego właściciela i uczestników, a także parametry członków zespołu, takie jak rola zawodowa, dostępna pojemność, kompetencje i stawka godzinowa.
+
+Udostępnia również usługi sprawdzające dostęp do projektu oraz przekazujące informacje o zespole innym modułom. Dane te są wykorzystywane przy przygotowywaniu propozycji przydziału zadań i estymacji kosztów.
+
+Rola zawodowa, na przykład programista lub tester, opisuje charakter pracy. Nie powinna być automatycznie utożsamiana z uprawnieniami użytkownika do wykonywania operacji w systemie.
+
+\subsection{Moduł Delivery}
+
+Moduł \texttt{Delivery} odpowiada za operacyjne zarządzanie pracą. Obejmuje zadania, sprinty, kolejność backlogu, statusy, podzadania, komentarze, etykiety i powiązania.
+
+Stanowi podstawowe źródło danych dla pozostałych mechanizmów. Informacje o terminach i zależnościach są wykorzystywane w harmonogramowaniu i analizie ryzyka, natomiast opis i rozmiar zadania stanowią część kontekstu estymacji kosztów.
+
+W module znajduje się również rejestr aktywności. Zdarzenia związane ze zmianami zadań i sprintów mogą być przetwarzane na wpisy opisujące przebieg pracy.
+
+\subsection{Moduł Scheduling}
+
+Moduł \texttt{Scheduling} odpowiada za obliczenia harmonogramu, dane wykresu Gantta oraz propozycje przydzielania zadań. Korzysta z informacji o zadaniach i zespole udostępnianych przez kontrakty wspólne.
+
+Obliczenia harmonogramu obejmują zależności, terminy i zapas czasu. Mechanizm przygotowywania przydziałów korzysta z heurystyki zachłannej uwzględniającej między innymi obciążenie i dopasowanie kompetencji.
+
+Propozycja jest oddzielona od jej zastosowania. Użytkownik może zapoznać się z wynikiem i zatwierdzić całość lub wybrane elementy. Obecna implementacja tego mechanizmu dotyczy przede wszystkim przydzielania nieprzypisanych zadań, a nie pełnej optymalizacji kalendarza wszystkich pracowników.
+
+\subsection{Moduł RiskPrediction}
+
+Moduł \texttt{RiskPrediction} przygotowuje oceny ryzyka zadań i prognozy dotyczące sprintów. W analizowanej implementacji wykorzystuje reguły heurystyczne oparte na bieżących danych.
+
+Nazwa modułu określa jego odpowiedzialność funkcjonalną, ale nie oznacza, że zawiera wytrenowany model uczenia maszynowego. Obecny mechanizm stanowi rozwiązanie bazowe, które może być porównywane z modelem uczonym po przygotowaniu odpowiedniego zbioru danych.
+
+Wynikom towarzyszą informacje o czynnikach wpływających na ocenę. Pozwala to powiązać sygnał ryzyka z konkretną sytuacją, taką jak bliski termin, brak wykonawcy lub zależności blokujące realizację.
+
+Moduł zawiera ponadto dwa elementy przygotowane pod przyszłą zmianę metody. Pierwszym jest granica modelu predykcyjnego, opisana w sekcji~\ref{sec:granica-modelu-ai}, oddzielająca sposób wyznaczania prognozy od pozostałych odpowiedzialności modułu. Drugim jest wydzielona część \texttt{Training}, odpowiadająca za rejestrowanie danych uczących. Nie uczestniczy ona w obsłudze żadnego zapytania użytkownika i nie wpływa na prezentowane wyniki; jej zadaniem jest wyłącznie gromadzenie obserwacji na potrzeby późniejszego dopasowania modelu.
+
+\subsection{Moduł BacklogPrioritisation}
+
+Moduł \texttt{BacklogPrioritisation} wyznacza rekomendowaną kolejność zadań. Wykorzystuje wielokryterialną ocenę uwzględniającą wartość biznesową, zależności, złożoność i ryzyko.
+
+Rozdzielenie go od modułu \texttt{Delivery} pozwala odróżnić bieżący porządek backlogu od propozycji wynikającej z analizy. Zmiana danych operacyjnych następuje w ramach odrębnej operacji związanej z decyzją użytkownika.
+
+Moduł udostępnia również uzasadnienia rankingu oraz obsługę zatwierdzania lub odrzucania rekomendacji.
+
+\subsection{Moduł CostEstimation}
+
+Moduł \texttt{CostEstimation} odpowiada za przygotowanie kontekstu modelu językowego, uruchomienie estymacji i przechowywanie wyników. Korzysta z opisów zadań oraz parametrów zespołu, w tym stawek przypisanych do ról.
+
+Rezultat obejmuje warianty kosztowe, pozycje kosztów pracy i innych wydatków, założenia, uzasadnienie oraz propozycje redukcji kosztów. Moduł obsługuje także historię estymacji, budżet i wybór rekomendowanych redukcji.
+
+Oddzielenie klienta modelu od przypadku użycia umożliwia zmianę dostawcy lub sposobu przygotowania żądania bez przebudowy pozostałych modułów. Zachowanie dotychczasowego kontraktu wymaga jednak utrzymania zgodnej semantyki wyniku.
+
+\subsection{Moduł Notifications}
+
+Moduł \texttt{Notifications} odpowiada za przechowywanie i udostępnianie powiadomień użytkownika oraz oznaczanie ich jako przeczytane. W jego zakresie znajduje się również funkcja wyszukiwania korzystająca z informacji udostępnianych przez inne obszary systemu.
+
+Powiadomienia użytkownika są odrębne od komunikatów SignalR. Pierwsze stanowią dane aplikacji, do których można powrócić, natomiast drugie służą do bieżącego informowania klienta o zmianach.
+
+\section{Granica modelu AI i wymienność implementacji}
+\label{sec:granica-modelu-ai}
+
+Mechanizmy analityczne różnią się sposobem wyznaczania wyniku. Ocena ryzyka jest obliczana lokalnie według jawnych reguł, natomiast estymacja kosztów wymaga wywołania usługi zewnętrznej. Metody te mogą ulec zmianie niezależnie od pozostałych części systemu: heurystyka może zostać zastąpiona modelem uczonym, a dostawca modelu językowego może zostać zmieniony lub wywołany z inną konfiguracją.
+
+Aby zmiany te nie wymuszały modyfikacji całego modułu, w architekturze zastosowano jednolity wzorzec granicy modelu. Warstwa aplikacyjna definiuje interfejs opisujący, co model otrzymuje i co zwraca, natomiast konkretny sposób wyznaczenia wyniku jest rejestrowany w warstwie infrastruktury lub dostarczany jako implementacja tego interfejsu.
+
+W systemie występują dwie takie granice, zbudowane według tego samego schematu:
+
+\begin{itemize}
+    \item \texttt{ICostEstimationModel} --- estymacja kosztów. Implementacją jest \texttt{AnthropicCostEstimationModel}, realizujący wywołanie usługi zewnętrznej.
+    \item \texttt{IRiskPredictionModel} --- predykcja ryzyka. Jedyną obecną implementacją jest \texttt{WeightedScorecardRiskModel}, zawierający heurystykę punktową.
+\end{itemize}
+
+Interfejs predykcji ryzyka przyjmuje strukturę opisującą komplet danych, na które model może patrzeć: identyfikator projektu, zadania, sprinty, członków zespołu oraz datę odniesienia. Przekazanie daty jako parametru, zamiast odczytywania jej z zegara systemowego wewnątrz implementacji, sprawia, że model pozostaje funkcją swojego wejścia. Umożliwia to powtórzenie obliczeń dla wskazanego dnia oraz późniejsze odtworzenie prognozy na danych historycznych.
+
+Wynik zawiera nie tylko oceny zadań i prognozy sprintów, lecz także dwa elementy opisujące samą prognozę: liczbę dni historii, na których model się oparł, oraz listę przyjętych założeń. Model heurystyczny zwraca w pierwszym polu wartość zerową, co stanowi jawną informację, że nie został dopasowany do żadnych danych. Wielkości te są zapisywane wraz z każdym uruchomieniem analizy, obok identyfikatora modelu.
+
+Umieszczenie tych informacji w wyniku, a nie w definicji interfejsu, wynika z przewidywanej charakterystyki modelu uczonego. Zakres dostępnej historii jest bowiem cechą konkretnego projektu, a nie metody: jedno przedsięwzięcie może dysponować wieloma miesiącami obserwacji, a inne kilkoma tygodniami.
+
+Procedura wykonawcza analizy nie zawiera żadnej wiedzy o sposobie wyznaczania ocen. Pobiera dane przez wspólne kontrakty, przekazuje je zarejestrowanemu modelowi i zapisuje otrzymany rezultat. Zamiana implementacji dotyczy zatem rejestracji usług w warstwie infrastruktury i nie wymaga zmian w procedurze obsługi zlecenia, sposobie zapisu wyników ani w punktach końcowych API.
+
+Granica ta pełni również funkcję porządkującą przy interpretacji wyników. Ponieważ każde uruchomienie zapisuje nazwę modelu, możliwe jest odróżnienie ocen pochodzących z różnych metod. Ma to znaczenie przy planowanym porównaniu heurystyki z modelem uczonym, gdzie obie metody muszą pozostać jednocześnie uruchamialne, aby porównanie w ogóle mogło zostać przeprowadzone.
+
+\section{Model danych i rozdzielenie danych modułów}
+
+Model danych odzwierciedla podział odpowiedzialności aplikacji. Każdy moduł posiada własny kontekst Entity Framework Core oraz schemat w bazie PostgreSQL. Dodatkowy schemat zawiera dane mechanizmów wspólnych.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Przyporządkowanie obszarów systemu do schematów bazy danych}
+    \label{tab:schematy-bazy}
+    \begin{tabularx}{\textwidth}{@{}lX@{}}
+        \toprule
+        \textbf{Schemat} & \textbf{Zakres danych} \\
+        \midrule
+        \texttt{identity\_access}
+        & Konta, role i dane związane z uwierzytelnianiem. \\
+        \texttt{workspace\_management}
+        & Projekty i członkowie zespołów. \\
+        \texttt{delivery}
+        & Zadania, sprinty, elementy powiązane i aktywność. \\
+        \texttt{scheduling}
+        & Dane harmonogramu i propozycje przydziałów. \\
+        \texttt{risk\_prediction}
+        & Dane analiz ryzyka i prognoz oraz migawki cech gromadzone na potrzeby uczenia modelu. \\
+        \texttt{backlog\_prioritisation}
+        & Wyniki priorytetyzacji i stan rekomendacji. \\
+        \texttt{cost\_estimation}
+        & Estymacje, budżety i wybrane redukcje kosztów. \\
+        \texttt{notifications}
+        & Powiadomienia użytkowników. \\
+        \texttt{common}
+        & Wspólne zadania asynchroniczne. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Schematy stanowią logiczne rozdzielenie danych. Nie oznaczają fizycznej izolacji baz ani automatycznego ograniczenia uprawnień połączenia do jednego modułu. Granice są utrzymywane przede wszystkim przez organizację kodu, konteksty danych i kontrakty dostępu.
+
+Centralnymi pojęciami modelu operacyjnego są projekt, członek zespołu, zadanie i sprint. Projekt określa kontekst pracy. Członkostwo opisuje udział osoby w projekcie, a zadanie zawiera informacje o zakresie, statusie, priorytecie i planowanej realizacji. Sprint grupuje prace w określonym przedziale czasu.
+
+Zadanie może zawierać kolekcje podzadań, komentarzy, etykiet i powiązań. W konfiguracji bazy określono między innymi unikalność klucza zadania w obrębie projektu oraz indeksy wspierające wyszukiwanie danych projektowych.
+
+Pomiędzy modułami przekazywane są identyfikatory i struktury opisujące potrzebny fragment danych. Moduł harmonogramowania nie musi posiadać całego modelu zadania wraz z komentarzami. Potrzebuje przede wszystkim jego identyfikatora, rozmiaru, wykonawcy, terminu i poprzedników.
+
+Osobno przechowywane są dane operacyjne i rezultaty wybranych analiz. Dzięki temu wynik estymacji kosztów lub propozycja przydziału może istnieć jako obiekt podlegający przeglądowi, zanim użytkownik zdecyduje o jego wykorzystaniu.
+
+Odrębną kategorię stanowi tabela \texttt{risk\_prediction.task\_feature\_snapshots}. Nie przechowuje ona ani danych operacyjnych, ani wyników prezentowanych użytkownikowi, lecz obserwacje gromadzone na potrzeby przyszłego uczenia modelu. Cechy zapisano w niej jako osobne kolumny o określonych typach, a nie jako dokument JSON, ponieważ dane te są przeznaczone do filtrowania, agregowania i eksportu, a nie do odczytu w całości i ponownej serializacji. Sposób ich powstawania i przeznaczenie omówiono w rozdziale~\ref{chap:mechanizmy-inteligentne}.
+
+\section{Komunikacja między modułami i kontrakty wspólne}
+
+Komunikację między modułami oparto na interfejsach umieszczonych w części wspólnej. Implementację kontraktu dostarcza moduł odpowiedzialny za dane, natomiast odbiorca korzysta z abstrakcji.
+
+Przykładowo interfejs \texttt{IProjectTasksService} udostępnia dane zadań w postaci struktur dostosowanych do harmonogramowania, estymacji kosztów i analiz. Zawiera również operacje umożliwiające zastosowanie wybranych zmian, takich jak przypisanie wykonawcy lub uporządkowanie backlogu.
+
+Interfejs \texttt{IProjectMembersService} przekazuje informacje o zespole, a \texttt{IProjectAccessService} umożliwia sprawdzenie dostępu do projektu. Wyniki analiz są udostępniane między innymi przez kontrakty \texttt{IRiskInsightsService} i \texttt{ISprintInsightsService}.
+
+Zastosowano struktury transferowe zawierające wyłącznie dane wymagane przez odbiorców. Ogranicza to przenoszenie szczegółów domeny poza jej moduł i pozwala utrzymywać stabilny interfejs współpracy.
+
+Przykładem jest przygotowanie propozycji przydziału:
+
+\begin{enumerate}
+    \item moduł harmonogramowania pobiera zadania przez kontrakt wspólny;
+    \item uzyskuje parametry członków zespołu;
+    \item wykonuje obliczenia i zapisuje propozycję;
+    \item po zatwierdzeniu przekazuje zmiany do modułu zarządzającego zadaniami.
+\end{enumerate}
+
+Wywołania te odbywają się wewnątrz jednego procesu. Nie wymagają połączeń HTTP pomiędzy modułami. Rozwiązanie upraszcza komunikację, lecz operacje obejmujące kilka kontekstów bazodanowych nadal wymagają świadomego określenia granic zapisu i obsługi częściowego niepowodzenia.
+
+Wspólne kontrakty należy rozwijać ostrożnie. Umieszczanie w nich nadmiernie szczegółowych struktur mogłoby prowadzić do odtworzenia silnych zależności, mimo formalnego rozdzielenia projektów.
+
+\section{Zdarzenia domenowe i mechanizm Outbox}
+
+Wybrane zmiany w modelu są reprezentowane przez zdarzenia domenowe. W module \texttt{Delivery} obejmują one między innymi utworzenie, aktualizację i zmianę statusu zadania oraz rozpoczęcie i zakończenie sprintu.
+
+Zdarzenie opisuje fakt, który wystąpił podczas wykonywania operacji. Pozwala oddzielić podstawową zmianę danych od działań będących jej następstwem, takich jak utworzenie wpisu w rejestrze aktywności.
+
+Do zapisywania zdarzeń wykorzystano interceptor \texttt{InsertOutboxMessagesInterceptor}. Podczas zapisu zmian odczytuje on zdarzenia zgromadzone przez encje, serializuje je i dodaje do kolekcji wiadomości Outbox w tym samym kontekście danych.
+
+W module \texttt{Delivery} zapis zmiany biznesowej i wiadomości Outbox odbywa się w ramach wspólnego zapisu do bazy. Następnie procesor działający w tle pobiera wiadomości oczekujące i przekazuje je do zarejestrowanych procedur obsługi.
+
+W analizowanej implementacji przetwarzanie odbywa się wewnątrz aplikacji. Nie zastosowano zewnętrznego brokera ani komunikacji zdarzeniowej pomiędzy osobnymi usługami.
+
+Wiadomość zawiera identyfikator, typ, treść, czas wystąpienia oraz informacje o przetworzeniu i ewentualnym błędzie. Istotnym ograniczeniem obecnego rozwiązania jest sposób obsługi niepowodzenia: wiadomość zostaje oznaczona czasem przetworzenia również wtedy, gdy zapisano błąd. Podstawowe zapytanie procesora nie pobiera jej ponownie, dlatego nie należy przypisywać tej implementacji automatycznej polityki ponowień.
+
+Mechanizm nie zapewnia również sam przez się jednokrotnego wykonania wszystkich skutków zdarzenia. Rozbudowa przetwarzania o ponowienia lub wiele instancji aplikacji wymagałaby określenia zasad współbieżności oraz odporności procedur obsługi na powtórzenia.
+
+\section{Projekt API i obsługa błędów}
+
+Interfejs serwerowy udostępnia zasoby i operacje za pomocą punktów końcowych HTTP. W analizowanej implementacji wykorzystywany jest prefiks \texttt{/api/v1}, a adresy odnoszą się między innymi do projektów, zadań, sprintów i analiz.
+
+Operacje odczytu wykorzystują metodę \texttt{GET}. Tworzenie zasobów i uruchamianie działań odbywa się przez \texttt{POST}, aktualizacje korzystają z \texttt{PATCH} lub \texttt{PUT}, natomiast usuwanie z \texttt{DELETE}.
+
+Kontrakty żądań są oddzielone od encji bazodanowych. Pozwala to określić, które pola użytkownik może przekazać w danej operacji, oraz ograniczyć przypadkowe ujawnianie wewnętrznego modelu.
+
+Przy częściowej aktualizacji zadania zastosowano rozróżnienie pomiędzy pominięciem pola a przekazaniem wartości pustej. Jest ono potrzebne na przykład podczas usuwania wykonawcy lub terminu. Brak pola oznacza pozostawienie dotychczasowej wartości, natomiast jawne przekazanie \texttt{null} może oznaczać jej wyczyszczenie.
+
+Błędy aplikacyjne są przekształcane do odpowiedzi w formacie Problem Details. Wspólny mechanizm mapowania rozróżnia między innymi błędy walidacji, brak zasobu, konflikt i niepoprawne uwierzytelnienie. Odpowiedź może zawierać również szczegółowe informacje o naruszeniach walidacji.
+
+Po stronie klienta zastosowano interceptor błędów HTTP. Centralizuje on wspólną część reakcji na niepowodzenia, podczas gdy widoki mogą uwzględniać znaczenie błędu w konkretnym przypadku użycia.
+
+Dokumentacja OpenAPI ułatwia sprawdzenie dostępnych operacji i kontraktów. Nie zastępuje jednak testów sprawdzających poprawność odpowiedzi, kontrolę dostępu i zachowanie w sytuacjach wyjątkowych.
+
+\section{Obsługa analiz wykonywanych w tle}
+
+Operacje analityczne mogą wymagać dłuższego czasu niż typowe modyfikacje danych. Dotyczy to zwłaszcza estymacji kosztów zależnej od odpowiedzi zewnętrznego modelu. W PlanWise zastosowano wspólny mechanizm zadań asynchronicznych.
+
+Interfejs \texttt{IAsyncJobService} umożliwia zapisanie zlecenia i pobranie informacji o jego stanie. Zlecenie zawiera identyfikator, typ operacji, identyfikator projektu, czas utworzenia oraz dane wyniku lub błędu.
+
+Procesor \texttt{AsyncJobRunner} okresowo pobiera oczekujące zlecenia z tabeli \texttt{common.async\_jobs}. Następnie wybiera implementację \texttt{IAsyncJobHandler} odpowiadającą typowi operacji i uruchamia jej wykonanie. W ten sposób wspólny mechanizm może obsługiwać różne analizy bez przenoszenia ich logiki do jednego komponentu.
+
+Model stanu obejmuje wartości \texttt{Queued}, \texttt{Running}, \texttt{Succeeded} i \texttt{Failed}. W obecnej implementacji zapis zmian następuje po przetworzeniu pobranej partii zleceń. Oznacza to, że stan \texttt{Running} ustawiony w pamięci nie musi być widoczny dla klienta odczytującego bazę w trakcie obliczeń.
+
+Po zakończeniu operacji zapisywana jest lokalizacja wyniku albo informacja o błędzie. Procesor przekazuje również komunikat o zakończeniu przez wspólny interfejs powiadamiania czasu rzeczywistego.
+
+Frontend może śledzić operację przez okresowe odpytywanie API oraz reagować na komunikaty SignalR. Trwały zapis zlecenia pozwala oddzielić czas jego wykonania od czasu trwania żądania inicjującego.
+
+Obecny procesor jest rozwiązaniem przeznaczonym do działania we wspólnym procesie aplikacji. Obsługa wielu równoległych instancji wymagałaby dodatkowego mechanizmu przejmowania zleceń, aby zapobiegać jednoczesnemu wykonaniu tej samej operacji przez kilka procesorów.
+
+\section{Architektura aplikacji Angular}
+
+Aplikację kliencką podzielono na obszary funkcjonalne oraz współdzielone mechanizmy. Katalog \texttt{features} zawiera widoki odpowiadające funkcjom systemu, natomiast \texttt{core} obejmuje między innymi uwierzytelnianie, komunikację HTTP i obsługę zdarzeń czasu rzeczywistego.
+
+Routing odzwierciedla kontekst pracy użytkownika. Po wyborze projektu dostępne są widoki pulpitu, tablicy, backlogu, osi czasu, zespołu, kosztów, prognoz, priorytetów i harmonogramu. Identyfikator projektu jest częścią adresu i jest przekazywany do widoków potomnych.
+
+Widoki są ładowane z wykorzystaniem \texttt{loadComponent}. Wspólny komponent układu aplikacji zapewnia nawigację i otoczenie dla poszczególnych funkcji.
+
+Komunikację z backendem umieszczono w usługach API. Komponent widoku inicjuje operację i prezentuje jej wynik, natomiast szczegóły adresów i kontraktów HTTP pozostają w warstwie usług.
+
+Stan uwierzytelnienia przechowuje \texttt{AuthStore}, wykorzystujący sygnały Angulara. Analogiczne rozdzielenie odpowiedzialności zastosowano dla kontekstu projektu i śledzenia analiz. Pozwala to udostępniać aktualne informacje wielu komponentom bez powielania ich obsługi.
+
+W konfiguracji HTTP zarejestrowano interceptor uwierzytelniania i interceptor błędów. Obsługę połączenia SignalR wydzielono do osobnej usługi, dzięki czemu komponenty nie muszą samodzielnie zarządzać szczegółami połączenia.
+
+Projekt rozróżnia sposób renderowania części publicznej i części dostępnej po zalogowaniu. Strony publiczne są skonfigurowane do prerenderowania, natomiast ścieżki projektowe korzystają z renderowania po stronie klienta. Przy uruchomieniu aplikacji w przeglądarce podejmowana jest próba odtworzenia sesji.
+
+Taki podział wiąże zakres danych użytkownika z jego sesją i pozwala utrzymać wspólną organizację interfejsu niezależnie od rodzaju prezentowanej analizy.
+
+\section{Uwierzytelnianie i kontrola dostępu}
+
+Uwierzytelnianie oparto na tokenie dostępu JWT oraz tokenie odświeżania sesji. Token dostępu jest wykorzystywany podczas komunikacji z chronionymi punktami końcowymi.
+
+W aplikacji Angular token dostępu znajduje się w pamięci magazynu stanu. Token odświeżania jest obsługiwany przez ciasteczko z atrybutami \texttt{HttpOnly}, \texttt{Secure} i \texttt{SameSite=Strict}. Po ponownym otwarciu strony klient próbuje uzyskać nowy token dostępu przez operację odświeżenia.
+
+Backend przechowuje skrót tokenu odświeżania. Podczas odnowienia sesji dotychczasowy token jest unieważniany, a następnie tworzona jest nowa para tokenów. Wylogowanie obejmuje unieważnienie aktywnego tokenu odświeżania.
+
+Uwierzytelnienie nie jest równoznaczne z prawem dostępu do dowolnego projektu. Do sprawdzania dostępu zastosowano kontrakt \texttt{IProjectAccessService}. Jego implementacja uwzględnia właściciela projektu i członkostwo w zespole. Dla wpisu członka niepowiązanego jeszcze z identyfikatorem konta przewidziano również porównanie adresu e-mail.
+
+Kontrola dostępu dotyczy także kanału SignalR. Podczas nawiązywania połączenia komponent \texttt{ProjectHub} sprawdza identyfikator użytkownika i prawo dostępu do projektu. Dopiero po pozytywnej weryfikacji połączenie jest przypisywane do grupy tego projektu.
+
+Po stronie Angulara zastosowano strażnika tras ograniczającego wejście do części aplikacji wymagającej sesji. Mechanizm ten organizuje nawigację, natomiast właściwa ochrona zasobów pozostaje odpowiedzialnością serwera.
+
+Projekt bezpieczeństwa wymaga rozróżnienia dostępu do projektu od uprawnień do poszczególnych działań. Sama obecność pola opisującego rolę członka zespołu nie dowodzi istnienia kompletnej macierzy uprawnień. Ocena zgodności implementacji z wymaganiami powinna obejmować testy konkretnych operacji odczytu i zapisu oraz prób dostępu do danych innych projektów.
+
+Przedstawiona architektura określa miejsca realizacji tych kontroli oraz granice odpowiedzialności komponentów. Szczegóły implementacji funkcji użytkowych i mechanizmów analitycznych omówiono w kolejnych rozdziałach.

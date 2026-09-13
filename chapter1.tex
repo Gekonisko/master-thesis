@@ -1,0 +1,95 @@
+\chapter{Wstęp}
+
+Zarządzanie projektem informatycznym obejmuje organizowanie pracy zespołu, planowanie harmonogramu, kontrolowanie kosztów oraz reagowanie na zagrożenia występujące podczas realizacji zadań. Działania te wymagają uwzględnienia zależności pomiędzy zakresem projektu, dostępnymi zasobami i oczekiwanym terminem zakończenia prac. Zmiana jednego z tych elementów może wpływać na pozostałe, co sprawia, że planowanie wymaga regularnej aktualizacji i oceny przyjętych założeń.
+
+Przedmiotem niniejszej pracy jest system PlanWise, którego zadaniem jest połączenie organizacji pracy projektowej z analizą danych wspierającą podejmowanie decyzji. Rozwiązanie obejmuje zarówno funkcje zarządzania projektami, zadaniami i sprintami, jak i mechanizmy oceny ryzyka, priorytetyzacji backlogu, wspomagania przydziału zadań oraz estymacji kosztów. Praca koncentruje się na zaprojektowaniu i implementacji tych funkcji oraz określeniu sposobu oceny ich przydatności.
+
+\section{Uzasadnienie wyboru tematu}
+
+Podstawowym problemem rozpatrywanym w pracy jest wykorzystanie danych projektowych do wspierania decyzji dotyczących dalszego przebiegu przedsięwzięcia. Rejestrowanie zadań, terminów i osób odpowiedzialnych pozwala uporządkować informacje, jednak samo ich zgromadzenie nie rozstrzyga, które zadania należy wykonać w pierwszej kolejności, gdzie może wystąpić opóźnienie ani jak rozdzielić pracę pomiędzy członków zespołu. Odpowiedź na te pytania wymaga uwzględnienia wielu czynników jednocześnie.
+
+Przykładem jest ustalanie kolejności realizacji backlogu. Zadanie o wysokiej wartości biznesowej może wymagać wcześniejszego wykonania prac technicznych, które samodzielnie nie dostarczają bezpośredniej wartości użytkownikowi. Z kolei zadanie o niewielkiej pracochłonności może blokować kilka kolejnych elementów projektu. Podobne zależności występują podczas przydzielania pracy: uwzględnienie wyłącznie kompetencji pracownika może prowadzić do jego przeciążenia, natomiast kierowanie się jedynie dostępnością może skutkować przypisaniem zadania osobie niedysponującej odpowiednim przygotowaniem.
+
+Drugim istotnym zagadnieniem jest niepewność dotycząca czasu i kosztów realizacji. Na etapie planowania opisy wymagań mogą być niepełne, a oszacowania pracochłonności podlegają zmianom wraz z poznawaniem szczegółów rozwiązania. Z tego względu przydatne jest przedstawianie wariantów realizacji, identyfikowanie czynników ryzyka oraz wskazywanie założeń, od których zależą przygotowane szacunki.
+
+Zagadnienia te uzasadniają opracowanie systemu łączącego dane operacyjne z metodami analitycznymi. W PlanWise rozważane są metody heurystyczne, uczenie maszynowe, algorytmy harmonogramowania oraz wykorzystanie dużego modelu językowego. Poszczególne podejścia odpowiadają różnym rodzajom danych i problemów: reguły punktowe umożliwiają jawną ocenę czynników ryzyka, analiza grafu zależności wspiera planowanie kolejności prac, a model językowy pozwala wykorzystać tekstowe opisy zadań przy przygotowywaniu estymacji kosztów.
+
+Wybór tematu wynika również z możliwości połączenia zagadnień inżynierii oprogramowania z oceną metod wspomagania decyzji. Opracowanie systemu wymaga zaprojektowania spójnego modelu danych, określenia odpowiedzialności modułów oraz zapewnienia przepływu informacji pomiędzy częścią organizacyjną i analityczną. Część badawcza pozwala natomiast sprawdzić, w jakich warunkach generowane wyniki są użyteczne i jakie ograniczenia należy uwzględnić podczas ich interpretacji.
+
+\section{Cel pracy}
+
+Głównym celem pracy jest zaprojektowanie, implementacja i ocena systemu informatycznego PlanWise, wspierającego kierownika projektu w organizacji pracy oraz podejmowaniu decyzji dotyczących ryzyka, priorytetów, harmonogramu i kosztów.
+
+Cel inżynierski obejmuje opracowanie aplikacji internetowej z warstwą serwerową w technologii .NET oraz interfejsem użytkownika wykonanym w Angularze. System ma umożliwiać zarządzanie projektami i zespołami, definiowanie zadań i ich zależności, prowadzenie backlogu, obsługę sprintów oraz prezentowanie postępu prac na tablicy Kanban i wykresie Gantta. Funkcje te mają dostarczać uporządkowanych danych dla mechanizmów analitycznych.
+
+W obszarze wspomagania decyzji celem jest opracowanie oceny ryzyka opóźnień, rekomendacji kolejności realizacji zadań oraz propozycji przydziału pracy uwzględniających charakterystykę zespołu. Uzupełnieniem jest estymacja kosztów z wykorzystaniem dużego modelu językowego, obejmująca wariant optymistyczny, realistyczny i pesymistyczny oraz uzasadnienie przyjętych założeń i rekomendacje redukcji kosztów.
+
+Cel badawczy polega na ocenie jakości wyników dostarczanych przez wybrane mechanizmy oraz porównaniu ich z określonymi metodami bazowymi. W odniesieniu do predykcji opóźnień zakłada się porównanie modelu uczenia maszynowego z istniejącą oceną heurystyczną. Dla pozostałych mechanizmów ocena obejmuje zgodność rekomendacji z kryteriami, jakość przydziału pracy oraz poprawność i powtarzalność estymacji kosztów.
+
+Istotnym założeniem jest przedstawianie użytkownikowi przesłanek stojących za rekomendacją. Kierownik projektu powinien mieć możliwość przeanalizowania wyniku, poznania jego ograniczeń oraz podjęcia decyzji o zastosowaniu proponowanych zmian.
+
+\section{Zakres pracy}
+
+Zakres pracy obejmuje analizę potrzeb użytkowników, przegląd wybranych rozwiązań wspierających zarządzanie projektami, określenie wymagań, zaprojektowanie architektury, implementację systemu oraz przygotowanie i przeprowadzenie jego oceny. Głównym obszarem zastosowania są projekty informatyczne, w których praca jest organizowana za pomocą zadań, backlogu i sprintów.
+
+Część organizacyjna systemu obejmuje obsługę tożsamości i dostępu, zarządzanie projektami oraz uczestnictwem w zespołach. Dane członków zespołu uwzględniają role, kompetencje, deklarowaną pojemność i stawki godzinowe. Zarządzanie pracą obejmuje zadania, podzadania, zależności, komentarze, statusy i przypisanie do sprintów. System udostępnia również historię aktywności, powiadomienia oraz aktualizację wybranych danych w czasie rzeczywistym.
+
+Architektura backendu opiera się na modularnym monolicie. Wyróżniono moduły tożsamości i dostępu, zarządzania projektami i zespołami, realizacji zadań, harmonogramowania, oceny ryzyka, priorytetyzacji backlogu, estymacji kosztów oraz powiadomień. Zakres opracowania obejmuje podział odpowiedzialności pomiędzy modułami, organizację warstw, komunikację poprzez wspólne kontrakty, wykorzystanie zdarzeń domenowych i przetwarzanie operacji analitycznych w tle. Dane przechowywane są w relacyjnej bazie PostgreSQL.
+
+Część analityczna obejmuje ocenę ryzyka na podstawie parametrów zadań oraz prognozowanie realizacji sprintu. Istniejące rozwiązanie heurystyczne stanowi punkt odniesienia dla planowanego modelu uczenia maszynowego.
+
+Zakres prac nad modelami obejmuje trzy elementy zrealizowane w systemie: wydzielenie heurystyki jako nazwanego modelu bazowego za wymienną granicą programistyczną, określenie zdarzenia docelowego wraz ze sposobem jego etykietowania oraz uruchomienie rejestrowania danych uczących, obejmującego cechy zadania z chwili prognozy i późniejszy wynik jego realizacji. Poza zakresem pozostaje dopasowanie modelu uczonego do danych i jego walidacja, ponieważ wymagają one zbioru obserwacji narastającego wraz z eksploatacją systemu.
+
+Priorytetyzacja backlogu uwzględnia wartość biznesową, zależności, złożoność i ocenę ryzyka. Harmonogramowanie obejmuje analizę grafu zależności, wyznaczanie terminów i ścieżki krytycznej oraz wspomaganie przydziału nieprzypisanych zadań. W pracy analizowane są również ograniczenia przyjętego modelu czasu, pojemności zespołu i dopasowania kompetencji.
+
+Estymacja kosztów obejmuje integrację z API Anthropic, przygotowanie kontekstu na podstawie backlogu i stawek zespołu, odbiór ustrukturyzowanej odpowiedzi oraz prezentację wariantów kosztowych, założeń i rekomendacji. Zakres nie obejmuje trenowania dużego modelu językowego od podstaw.
+
+Ocena rozwiązania obejmuje testy oprogramowania oraz eksperymenty dotyczące mechanizmów analitycznych. Wnioski z badań odnoszą się do wykorzystanych danych, scenariuszy i założeń. Ocena wpływu systemu na długoterminowe wyniki rzeczywistych organizacji pozostaje poza zakresem pracy.
+
+\section{Teza pracy}
+
+Na potrzeby pracy przyjęto następującą tezę:
+
+\textbf{Integracja danych projektowych z metodami analizy ryzyka, wielokryterialnej priorytetyzacji, algorytmicznego przydziału zadań i estymacji kosztów z wykorzystaniem dużego modelu językowego umożliwia poprawę jakości wsparcia decyzji planistycznych względem przyjętych metod bazowych w określonych scenariuszach projektowych.}
+
+Jakość wsparcia decyzji jest rozpatrywana przez pryzmat mierzalnych właściwości wyników. Obejmuje trafność identyfikowania opóźnień, zgodność kolejności zadań z kryteriami priorytetyzacji, rozkład obciążenia zespołu i spełnienie ograniczeń przydziału, a także błąd estymacji kosztów względem przyjętych wartości referencyjnych. Dodatkowo analizowana jest możliwość prześledzenia założeń i czynników wpływających na rekomendację.
+
+Weryfikacja tezy wymaga porównania metod przy zachowaniu zgodnych danych wejściowych i warunków eksperymentu. Samo wygenerowanie prognozy lub rekomendacji nie stanowi potwierdzenia jej jakości. Konieczne jest zbadanie, czy uzyskany wynik przewyższa odpowiedni punkt odniesienia oraz w jakich przypadkach zastosowane podejście nie przynosi poprawy.
+
+\section{Zastosowane metody badawcze}
+
+Metodyka pracy obejmuje analizę literatury i istniejących rozwiązań, projektowanie artefaktu informatycznego, testowanie oprogramowania oraz eksperymenty porównawcze. Na obecnym etapie przygotowania pracy część eksperymentalna jest planowana; jej ostateczny przebieg zostanie opisany zgodnie z rzeczywiście przeprowadzonymi badaniami.
+
+Analiza literatury ma służyć uporządkowaniu zagadnień zarządzania projektami, oceny ryzyka, harmonogramowania, uczenia maszynowego i zastosowania modeli językowych. Analiza porównawcza narzędzi ma natomiast umożliwić określenie zakresu funkcji istniejących systemów oraz uzasadnienie decyzji projektowych dotyczących PlanWise.
+
+Część inżynierska wykorzystuje iteracyjne projektowanie i implementację. Obejmuje modelowanie danych i procesów, określanie granic modułów, projektowanie interfejsów oraz rozwijanie funkcji użytkowych i analitycznych. Weryfikacja techniczna uwzględnia testy architektury, testy jednostkowe i integracyjne oraz testy komponentów interfejsu. Osobnej ocenie podlegają scenariusze kontroli dostępu i współpracy pomiędzy częściami systemu.
+
+Badanie predykcji opóźnień opiera się na danych zawierających cechy dostępne w chwili sporządzania prognozy i późniejszy wynik realizacji zadania. Ich gromadzenie zostało w systemie uruchomione, ponieważ zbioru takiego nie da się odtworzyć wstecz z danych opisujących stan bieżący. Podział danych powinien ograniczać przenikanie informacji pomiędzy częścią uczącą i testową, z uwzględnieniem czasu oraz przynależności obserwacji do zadań i projektów. Planowane jest porównanie modelu z heurystyczną oceną ryzyka przy użyciu metryk dopasowanych do postaci problemu. W przypadku klasyfikacji obejmują one między innymi precyzję, czułość i miarę F1. Wynik regułowy nie będzie traktowany jako skalibrowane prawdopodobieństwo bez odrębnej weryfikacji.
+
+Ocena priorytetyzacji backlogu ma obejmować analizę scenariuszy o różnej wartości biznesowej, złożoności i strukturze zależności. Planowane jest badanie wrażliwości rankingu na zmianę wag oraz porównanie z prostszymi regułami porządkowania zadań. Pozwoli to określić, które kryteria dominują w rekomendacji i jak zmiana danych wpływa na jej stabilność.
+
+Ocena przydziału zadań ma uwzględniać obciążenie odniesione do pojemności członków zespołu, dopasowanie kompetencji oraz spełnienie przyjętych ograniczeń. Poprawność obliczania harmonogramu zostanie sprawdzona na grafach zależności o znanych terminach i ścieżce krytycznej. Rozróżniona zostanie ocena wyznaczania terminów od oceny przydziału wykonawców, ponieważ są to odrębne elementy obecnego rozwiązania.
+
+Badanie estymacji kosztów zakłada wielokrotne wykonanie zapytań dla tych samych przypadków projektowych. Ocenie podlegać mają zgodność odpowiedzi ze strukturą danych, poprawność rachunkowa, wykorzystanie przekazanych stawek, spójność wariantów oraz powtarzalność wyników. Trafność kosztorysu będzie oceniana względem kosztów rzeczywistych, jeśli będą dostępne, lub jawnie określonych oszacowań referencyjnych. Rozróżnienie to zostanie uwzględnione podczas interpretacji rezultatów.
+
+Końcowym etapem będzie zestawienie wyników z celami pracy i przyjętą tezą. Analiza obejmie zarówno uzyskane korzyści, jak i przypadki nieskuteczności metod oraz ograniczenia wynikające z jakości i dostępności danych.
+
+\section{Struktura pracy}
+
+Praca obejmuje osiem rozdziałów. Rozdział pierwszy przedstawia uzasadnienie wyboru tematu, cel i zakres opracowania, tezę oraz metodykę jej weryfikacji.
+
+Rozdział drugi poświęcony jest podstawom zarządzania projektami i inteligentnego wspomagania decyzji. Obejmuje organizację pracy, estymację, zależności między zadaniami, ocenę ryzyka, priorytetyzację, harmonogramowanie oraz zastosowanie uczenia maszynowego i dużych modeli językowych.
+
+Rozdział trzeci zawiera analizę wybranych narzędzi oraz wymagania systemu PlanWise. Przedstawia kryteria porównania, potrzeby użytkowników, wymagania funkcjonalne i niefunkcjonalne, przypadki użycia oraz ograniczenia projektu.
+
+Rozdział czwarty opisuje architekturę systemu. Wyjaśnia podział na moduły i warstwy, organizację danych, komunikację między modułami, obsługę zdarzeń i zadań wykonywanych w tle oraz architekturę frontendu i mechanizmy kontroli dostępu.
+
+Rozdział piąty przedstawia implementację funkcji zarządzania projektami. Obejmuje obsługę użytkowników, projektów, zespołów, zadań i sprintów, wizualizację postępu oraz mechanizmy współpracy i integracji aplikacji klienckiej z backendem.
+
+Rozdział szósty koncentruje się na mechanizmach wspomagania decyzji. Opisuje ocenę ryzyka, priorytetyzację backlogu, harmonogramowanie, przydział zadań oraz estymację kosztów z wykorzystaniem modelu językowego, wraz z ich założeniami i ograniczeniami. Osobne sekcje poświęcono pracom nad modelami: przygotowaniu wymiennej granicy modelu predykcyjnego wraz z mechanizmem gromadzenia danych uczących oraz sposobowi współpracy z zewnętrznym modelem językowym.
+
+Rozdział siódmy obejmuje testowanie i ocenę rozwiązania. Przedstawia metodykę eksperymentów, dane, metryki, wyniki porównań oraz dyskusję dotyczącą weryfikacji tezy i ograniczeń badań.
+
+Rozdział ósmy zawiera podsumowanie realizacji celów, omówienie wkładu własnego oraz propozycje dalszego rozwoju systemu.
+
+ 

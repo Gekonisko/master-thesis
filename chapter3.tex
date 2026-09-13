@@ -1,0 +1,383 @@
+\chapter{Analiza istniejących rozwiązań i wymagania systemu}
+\label{chap:analiza-i-wymagania}
+
+Projektowanie systemu PlanWise wymaga określenia jego miejsca wśród istniejących narzędzi oraz zdefiniowania problemów, które rozwiązanie ma wspierać. W tym celu przeprowadzono analizę dokumentacji wybranych systemów zarządzania projektami i zestawiono ich możliwości z zakresem niniejszej pracy.
+
+Analiza obejmuje organizację zadań, planowanie pracy zespołu, prezentację harmonogramu oraz mechanizmy automatyzacji i wspomagania decyzji. Na tej podstawie sformułowano wymagania funkcjonalne i niefunkcjonalne, określono użytkowników systemu oraz przedstawiono najważniejsze przypadki użycia.
+
+Wymagania zawarte w rozdziale opisują docelowe zachowanie rozwiązania. Stopień ich realizacji wymaga odrębnej weryfikacji na podstawie implementacji i wyników testów. Rozróżnienie to jest szczególnie istotne w odniesieniu do predykcji opóźnień. Aktualna wersja projektu wyznacza oceny ryzyka za pomocą heurystyki, przy czym stanowi ona jawnie nazwany model bazowy umieszczony za wymienną granicą modelu, a system rejestruje równocześnie dane potrzebne do wytrenowania jego następcy. Samo dopasowanie modelu uczonego i porównanie go z heurystyką pozostaje natomiast poza zakresem obecnej implementacji.
+
+
+\section{Kryteria porównania narzędzi do zarządzania projektami}
+\label{sec:kryteria-porownania}
+
+Do analizy wybrano Jira, Trello oraz Azure Boards, będące częścią platformy Azure DevOps. Dobór obejmuje rozwiązania reprezentujące odmienne sposoby organizacji pracy: rozbudowany system zarządzania zadaniami i procesami, narzędzie oparte na tablicach i kartach oraz usługę powiązaną z procesem wytwarzania oprogramowania.
+
+Porównanie przeprowadzono na podstawie publicznej dokumentacji i materiałów producentów, według stanu odczytanego 10 września 2026 roku. Nie przeprowadzono pomiarów wydajności ani badania użyteczności tych produktów. Wnioski dotyczą więc udokumentowanego zakresu funkcjonalnego, a nie jakości działania w identycznych warunkach eksploatacyjnych.
+
+Przyjęto następujące kryteria:
+\begin{enumerate}
+    \item \textbf{Organizacja pracy} --- możliwość definiowania zadań, porządkowania backlogu, zarządzania statusami i planowania iteracji.
+    \item \textbf{Planowanie terminów i zależności} --- reprezentacja powiązań między zadaniami oraz prezentacja pracy na osi czasu.
+    \item \textbf{Zarządzanie zespołem} --- przypisywanie odpowiedzialności i uwzględnianie dostępności lub obciążenia wykonawców.
+    \item \textbf{Automatyzacja i sztuczna inteligencja} --- wykonywanie działań na podstawie reguł oraz wykorzystanie mechanizmów AI.
+    \item \textbf{Wsparcie decyzji} --- dostarczanie informacji pomocnych w ustalaniu priorytetów, identyfikowaniu zagrożeń i planowaniu dalszej pracy.
+    \item \textbf{Możliwość rozszerzania} --- dostępność interfejsów programistycznych i integracji.
+    \item \textbf{Przydatność jako punkt odniesienia dla PlanWise} --- możliwość wskazania wzorców funkcjonalnych oraz obszarów wymagających własnego modelowania i oceny.
+\end{enumerate}
+
+Dostępność funkcji może zależeć od planu subskrypcji, konfiguracji, uprawnień oraz zastosowanych rozszerzeń. Nie przyjęto zatem uproszczonego założenia, że wszystkie możliwości opisane przez producenta są dostępne w każdej wersji produktu.
+
+Rozróżniono również deklarowaną dostępność funkcji od jej potwierdzonej skuteczności. Informacja o wykorzystaniu AI nie stanowi sama w sobie dowodu trafności prognoz ani poprawy wyników projektowych.
+
+
+\section{Charakterystyka wybranych rozwiązań}
+\label{sec:charakterystyka-rozwiazan}
+
+\subsection{Jira}
+\label{subsec:jira}
+
+Jira udostępnia mechanizmy planowania i przypisywania pracy, zarządzania zależnościami oraz monitorowania postępu. Producent opisuje widoki tablicowe, listy, osie czasu i kalendarze, a także konfigurowalne przepływy pracy, pola i uprawnienia. System oferuje również API i integracje z innymi narzędziami.\footnote{Atlassian, \textit{Jira project management features}, \url{https://www.atlassian.com/software/jira/features}, dostęp: 10.09.2026.}
+
+W materiałach producenta przedstawiono zastosowania Rovo AI związane z planowaniem i przypisywaniem zadań, tworzeniem automatyzacji oraz identyfikowaniem ryzyk i trendów. Jira nie powinna być zatem traktowana jako narzędzie ograniczone wyłącznie do przechowywania danych.\footnote{Atlassian, \textit{Rovo in Jira: AI features}, \url{https://www.atlassian.com/software/jira/ai}, dostęp: 10.09.2026.}
+
+Na potrzeby niniejszej pracy Jira stanowi punkt odniesienia dla konfigurowalności procesu oraz łączenia danych projektowych z funkcjami analitycznymi. Porównanie z PlanWise dotyczy jednak sposobu organizacji rozwiązania i zakresu wspomaganych decyzji. Bez kontrolowanego eksperymentu nie można na tej podstawie stwierdzić przewagi któregokolwiek systemu pod względem jakości rekomendacji.
+
+
+\subsection{Trello}
+\label{subsec:trello}
+
+Trello organizuje pracę za pomocą tablic, list i kart. Karty pozwalają gromadzić informacje dotyczące elementów pracy, natomiast listy umożliwiają ich grupowanie zgodnie z przyjętym procesem. Taki model stanowi punkt odniesienia dla wizualnej prezentacji zadań w PlanWise.\footnote{Atlassian, \textit{What is Trello: Learn Features, Uses \& More}, \url{https://trello.com/tour}, dostęp: 10.09.2026.}
+
+Dokumentacja Trello opisuje automatyzacje oparte na regułach, przyciski uruchamiające sekwencje działań oraz polecenia związane z terminami i kalendarzem. Przykładem jest przeniesienie karty lub przypisanie osoby po wystąpieniu określonego zdarzenia.\footnote{Atlassian, \textit{How to use Trello automation for task automation}, \url{https://trello.com/guide/automate-anything}, dostęp: 10.09.2026.}
+
+Reguła automatyzacji opisuje działanie wykonywane po spełnieniu warunku. Nie należy utożsamiać jej z modelem uczonym na danych historycznych ani z rozwiązaniem problemu optymalizacyjnego. W odniesieniu do PlanWise istotne jest zatem oddzielenie automatyzacji obsługi zadań od analitycznej oceny ryzyka, kosztów i przydziału zasobów.
+
+Na podstawie przeanalizowanych materiałów nie rozstrzygnięto pełnego zakresu możliwości uzyskiwanych przez dodatkowe integracje Trello. Brak opisu konkretnego mechanizmu w wykorzystanym źródle nie został potraktowany jako dowód jego niedostępności w całym ekosystemie produktu.
+
+
+\subsection{Azure Boards}
+\label{subsec:azure-boards}
+
+Azure Boards udostępnia elementy pracy, tablice, backlogi, sprinty, zapytania i widoki analityczne. Umożliwia także powiązanie pracy projektowej z elementami procesu wytwarzania oprogramowania. Dokumentacja wskazuje możliwości rozszerzania systemu przez API i dodatki oraz wykorzystania wsparcia AI poprzez Azure DevOps MCP Server.\footnote{Microsoft, \textit{What is Azure Boards?}, \url{https://learn.microsoft.com/en-us/azure/devops/boards/get-started/what-is-azure-boards?view=azure-devops}, dostęp: 10.09.2026.}
+
+Funkcja Delivery Plans pozwala przeglądać planowane prace zespołów na osi czasu i analizować zależności. Stanowi to punkt odniesienia dla prezentacji relacji między zakresem a terminami w PlanWise.\footnote{Microsoft, \textit{Use team delivery plans}, \url{https://learn.microsoft.com/en-us/azure/devops/boards/plans/review-team-plans?view=azure-devops}, dostęp: 10.09.2026.}
+
+Azure Boards pozwala również określać pojemność członków zespołu w sprincie, rodzaje wykonywanych działań i dni nieobecności. Rozwiązanie to pokazuje znaczenie odnoszenia dostępności do konkretnego okresu planowania.\footnote{Microsoft, \textit{Set the team sprint capacity in Azure Boards}, \url{https://learn.microsoft.com/en-us/azure/devops/boards/sprints/set-capacity?view=azure-devops}, dostęp: 10.09.2026.}
+
+W niniejszej analizie nie oceniano skuteczności rozwiązań AI dostępnych przez integracje. Potwierdzona możliwość połączenia z asystentem nie jest równoznaczna z potwierdzeniem jakości predykcji opóźnień lub estymacji kosztów w scenariuszach przyjętych dla pracy.
+
+
+\section{Porównanie funkcji organizacyjnych i mechanizmów inteligentnych}
+\label{sec:porownanie-funkcji}
+
+Tabela~\ref{tab:porownanie-narzedzi} przedstawia syntetyczne zestawienie wybranych funkcji. Zawiera wyłącznie możliwości opisane w źródłach przywołanych w poprzedniej sekcji.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Zestawienie wybranych możliwości analizowanych narzędzi}
+    \label{tab:porownanie-narzedzi}
+    \small
+    \begin{tabularx}{\textwidth}{
+        >{\raggedright\arraybackslash}p{0.19\textwidth}
+        >{\raggedright\arraybackslash}X
+        >{\raggedright\arraybackslash}X
+        >{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{Obszar} &
+        \textbf{Jira} &
+        \textbf{Trello} &
+        \textbf{Azure Boards} \\
+        \midrule
+
+        Organizacja pracy &
+        Zadania i konfigurowalne przepływy &
+        Tablice, listy i karty &
+        Elementy pracy, backlogi i sprinty \\
+        \addlinespace
+
+        Prezentacja planu &
+        Tablice, listy i osie czasu &
+        Organizacja kart na tablicach &
+        Tablice i Delivery Plans \\
+        \addlinespace
+
+        Automatyzacja lub AI &
+        Automatyzacje i funkcje Rovo AI &
+        Reguły, przyciski i polecenia terminowe &
+        Wsparcie AI przez integrację MCP \\
+        \addlinespace
+
+        Punkt odniesienia dla PlanWise &
+        Konfigurowalność i integracja analizy &
+        Wizualna organizacja pracy &
+        Planowanie sprintów i pojemności \\
+        \bottomrule
+    \end{tabularx}
+
+    \par\smallskip
+    \begin{minipage}{\textwidth}
+        \footnotesize
+        Źródło: opracowanie własne na podstawie dokumentacji producentów.
+        Zestawienie nie obejmuje wszystkich planów subskrypcji i rozszerzeń.
+    \end{minipage}
+\end{table}
+
+Z analizy wynika, że organizacja zadań i prezentacja postępu nie stanowią wystarczającego wyróżnika projektowanego rozwiązania. Istniejące systemy oferują również automatyzację oraz integracje wykorzystujące AI. Uzasadnienie budowy PlanWise opiera się więc na możliwości zaprojektowania spójnego modelu wspomagania wybranych decyzji i przeprowadzenia jego kontrolowanej oceny.
+
+Należy rozróżnić trzy rodzaje mechanizmów. Automatyzacja wykonuje zdefiniowane działania po wystąpieniu warunku. Mechanizm predykcyjny szacuje przyszły wynik na podstawie danych. Mechanizm rekomendacyjny wskazuje propozycję działania według określonych kryteriów. Funkcje te mogą współpracować, ale ich jakość wymaga odmiennych metod weryfikacji.
+
+Szczególne znaczenie dla pracy ma możliwość porównania metod na tych samych danych oraz prześledzenia czynników wpływających na wynik. Analiza materiałów producentów nie zastępuje takiego eksperymentu. Nie sformułowano zatem twierdzenia, że PlanWise zapewnia trafniejsze rekomendacje niż analizowane produkty.
+
+
+\section{Wnioski z analizy i założenia systemu PlanWise}
+\label{sec:wnioski-i-zalozenia}
+
+Przyjęto, że PlanWise będzie łączył funkcje organizacyjne i analityczne w ramach jednego systemu. Informacje o zadaniach, zależnościach, sprintach i członkach zespołu mają być wykorzystywane przez mechanizmy oceny ryzyka, priorytetyzacji, przydziału pracy i estymacji kosztów.
+
+Podstawą rozwiązania jest wspólny kontekst projektu. Rekomendacja powinna odnosić się do zadań i zasobów należących do wskazanego przedsięwzięcia, a jej udostępnienie musi podlegać kontroli dostępu. Wynik analizy nie może być przedstawiany bez informacji pozwalającej ustalić, którego projektu dotyczy.
+
+Drugim założeniem jest rozdzielenie wygenerowania propozycji od jej zastosowania. Obliczenie priorytetów lub przydziału zadań powinno prowadzić do utworzenia wyniku możliwego do przeglądania. Zmiana danych operacyjnych następuje po decyzji uprawnionego użytkownika.
+
+Trzecim założeniem jest możliwość wymiany metod analitycznych. Aktualne reguły heurystyczne mają stanowić jawnie opisane metody bazowe. W przypadku predykcji opóźnień przewiduje się opracowanie modelu uczonego na danych i porównanie go z heurystyką. Sama obecność modułu o nazwie RiskPrediction nie oznacza realizacji tego wymagania.
+
+Z założenia tego wynikają dwie konsekwencje projektowe podjęte w implementacji. Pierwszą jest wprowadzenie jawnej granicy programistycznej oddzielającej sposób wyznaczania prognozy od sposobu jej uruchamiania, zapisywania i udostępniania. Drugą jest uruchomienie rejestrowania danych uczących, zanim powstanie model, który miałby z nich skorzystać. Kolejność ta nie jest dowolna: dane opisujące stan projektu w chwili prognozy nie mogą zostać odtworzone później, więc odłożenie ich zapisu do czasu wyboru metody uczenia uniemożliwiłoby jej późniejsze zastosowanie.
+
+Czwartym założeniem jest prezentowanie ograniczeń wyników. Wskaźnik regułowy nie powinien być opisywany jako skalibrowane prawdopodobieństwo, a wariant kosztowy jako statystyczny kwantyl bez odpowiedniego uzasadnienia. Podobnie propozycja przypisania wykonawców nie dowodzi skrócenia projektu, jeżeli nie przeprowadzono ponownej oceny harmonogramu.
+
+Własna implementacja umożliwia kontrolowanie tych założeń, rejestrowanie wyników i prowadzenie eksperymentów. Stanowi to uzasadnienie projektu jako przedmiotu pracy magisterskiej.
+
+
+\section{Użytkownicy systemu i ich potrzeby}
+\label{sec:uzytkownicy-i-potrzeby}
+
+W analizie wyróżniono użytkownika niezalogowanego, kierownika projektu oraz członka zespołu. Są to kategorie opisujące potrzeby i scenariusze korzystania z aplikacji. Nie muszą odpowiadać bezpośrednio nazwom ról zapisanych w implementacji.
+
+Użytkownik niezalogowany potrzebuje możliwości utworzenia konta, zalogowania się oraz odzyskania dostępu. Nie powinien uzyskiwać dostępu do danych projektowych wymagających uwierzytelnienia.
+
+Kierownik projektu odpowiada w przyjętym modelu użytkowym za organizację przedsięwzięcia. Potrzebuje możliwości określenia zakresu prac, składu zespołu, terminów i budżetu. Powinien mieć dostęp do informacji o postępie, blokadach i obciążeniu oraz możliwość przeglądania i zatwierdzania rekomendacji.
+
+Członek zespołu potrzebuje dostępu do zadań, ich opisów, zależności i aktualnego stanu realizacji. Do podstawowych działań należą aktualizacja statusu, praca z podzadaniami i wymiana informacji w komentarzach. Zakres modyfikacji powinien wynikać z uprawnień w danym projekcie.
+
+Jedna osoba może uczestniczyć w wielu projektach i posiadać w nich różne uprawnienia. Uwierzytelnienie użytkownika nie jest więc wystarczające do udzielenia dostępu do każdego przedsięwzięcia.
+
+Należy także odróżnić rolę związaną z autoryzacją od roli zawodowej i kompetencji. Określenie osoby jako programisty lub testera opisuje jej udział w pracy, natomiast uprawnienie do zarządzania zespołem określa dozwolone działania w aplikacji. Stawka godzinowa i kompetencje są dodatkowo wykorzystywane w analizach kosztów i przydziału zadań.
+
+
+\section{Wymagania funkcjonalne}
+\label{sec:wymagania-funkcjonalne}
+
+Wymaganiom funkcjonalnym nadano identyfikatory WF. Umożliwiają one powiązanie oczekiwanego zachowania systemu z implementacją, przypadkami użycia i scenariuszami weryfikacji.
+
+\begin{description}
+    \item[WF-01. Obsługa kont użytkowników.]
+    System powinien umożliwiać rejestrację, logowanie, zakończenie sesji i odzyskanie dostępu do konta. Rejestracja powinna uwzględniać unikalność adresu e-mail zgodnie z przyjętymi zasadami jego porównywania.
+
+    \item[WF-02. Kontrola dostępu.]
+    System powinien sprawdzać uprawnienia do odczytu i modyfikacji danych projektu, w tym wyników analiz i statusów operacji wykonywanych w tle.
+
+    \item[WF-03. Zarządzanie projektami.]
+    Uprawniony użytkownik powinien mieć możliwość utworzenia projektu, przeglądania jego danych oraz modyfikacji podstawowych parametrów.
+
+    \item[WF-04. Zarządzanie zespołem.]
+    System powinien umożliwiać zarządzanie uczestnictwem w projekcie i danymi członków zespołu, obejmującymi role, kompetencje, deklarowaną pojemność i stawki godzinowe.
+
+    \item[WF-05. Zarządzanie zadaniami.]
+    System powinien umożliwiać tworzenie i edycję zadań, określanie opisu, statusu, priorytetu, wykonawcy, terminu, oszacowania punktowego i wartości biznesowej oraz obsługę podzadań i etykiet.
+
+    \item[WF-06. Obsługa zależności.]
+    System powinien umożliwiać definiowanie powiązań pomiędzy zadaniami. Dane niepoprawne z punktu widzenia obliczeń harmonogramu, w szczególności cykle zależności, powinny zostać wykryte i jednoznacznie zgłoszone.
+
+    \item[WF-07. Backlog i sprinty.]
+    System powinien umożliwiać przeglądanie i porządkowanie backlogu, tworzenie sprintów, przypisywanie do nich zadań oraz obsługę rozpoczęcia i zakończenia sprintu.
+
+    \item[WF-08. Tablica zadań.]
+    System powinien prezentować zadania według statusów i umożliwiać zmianę ich stanu zgodnie z uprawnieniami użytkownika.
+
+    \item[WF-09. Harmonogram.]
+    System powinien prezentować zadania na wykresie Gantta, uwzględniać zależności i kamienie milowe oraz wyznaczać terminy i ścieżkę krytyczną przy jawnie określonych założeniach.
+
+    \item[WF-10. Współpraca i monitorowanie.]
+    System powinien obsługiwać komentarze, historię aktywności, powiadomienia i aktualizację wybranych danych w czasie rzeczywistym.
+
+    \item[WF-11. Ocena ryzyka.]
+    System powinien umożliwiać uruchomienie analizy ryzyka zadań i prognozy realizacji sprintu oraz prezentować czynniki wpływające na wynik.
+
+    \item[WF-12. Wymienność modelu predykcyjnego.]
+    Sposób wyznaczania oceny ryzyka powinien być odseparowany od pozostałych elementów modułu jawną granicą programistyczną. Zamiana modelu heurystycznego na model uczony nie powinna wymagać zmian w procedurze uruchamiania analizy, sposobie zapisu wyników ani w interfejsie API. Każde uruchomienie analizy powinno zapisywać identyfikator modelu, który je wykonał, oraz przyjęte przez niego założenia.
+
+    \item[WF-13. Gromadzenie danych uczących.]
+    System powinien rejestrować, dla każdego uruchomienia analizy ryzyka, surowy wektor cech każdego ocenianego zadania wraz z wygenerowaną prognozą, a następnie uzupełniać te zapisy o rzeczywisty wynik realizacji, gdy stanie się on znany. Zapis powinien odróżniać wynik ostateczny od wyniku niepełnego oraz przypadki, dla których etykieta nie może powstać.
+
+    \item[WF-14. Predykcja z wykorzystaniem ML.]
+    Docelowe rozwiązanie powinno udostępniać predykcję opóźnień z wykorzystaniem modelu uczonego na zgromadzonych danych oraz umożliwiać porównanie wyników z metodą heurystyczną. Wymaganie to stanowi rozszerzenie obecnej implementacji.
+
+    \item[WF-15. Priorytetyzacja backlogu.]
+    System powinien generować rekomendowaną kolejność zadań z uwzględnieniem wartości biznesowej, zależności, złożoności i ryzyka oraz umożliwiać jej zatwierdzenie lub odrzucenie.
+
+    \item[WF-16. Wspomaganie przydziału pracy.]
+    System powinien generować propozycje przydziału zadań na podstawie obciążenia, pojemności i kompetencji zespołu. Powinien wskazywać ograniczenia metody oraz umożliwiać zastosowanie całej propozycji lub wybranych zmian.
+
+    \item[WF-17. Estymacja kosztów.]
+    System powinien wykorzystywać backlog i stawki zespołu do przygotowania estymacji z udziałem LLM. Wynik powinien obejmować wariant optymistyczny, realistyczny i pesymistyczny, składniki kosztów, założenia oraz uzasadnienie.
+
+    \item[WF-18. Budżet i rekomendacje kosztowe.]
+    System powinien umożliwiać określenie budżetu projektu, przeglądanie historii estymacji oraz ocenę rekomendacji ograniczenia kosztów wraz z ich konsekwencjami.
+
+    \item[WF-19. Obsługa analiz w tle.]
+    Uruchomienie analizy powinno zwracać identyfikator operacji, a system powinien udostępniać jej status i wynik lub informację o niepowodzeniu.
+
+    \item[WF-20. Weryfikacja wyników analitycznych.]
+    System powinien sprawdzać strukturę i wymagane elementy wyników. W odniesieniu do kosztorysu powinien weryfikować także zgodność stawek, walut i obliczeń oraz nie przedstawiać błędnej odpowiedzi jako poprawnej estymacji.
+\end{description}
+
+Nie wszystkie wymagania muszą być realizowane przez pojedynczy moduł. Przykładowo estymacja kosztów korzysta z danych zespołu i backlogu, natomiast jej dostępność dla użytkownika zależy od kontroli dostępu. Powiązania te powinny zostać uwzględnione w projekcie architektury i testach integracyjnych.
+
+
+\section{Wymagania niefunkcjonalne}
+\label{sec:wymagania-niefunkcjonalne}
+
+Wymagania niefunkcjonalne opisują właściwości rozwiązania istotne dla jego bezpieczeństwa, utrzymywalności i przydatności użytkowej. Oznaczono je identyfikatorami WN.
+
+\begin{description}
+    \item[WN-01. Bezpieczeństwo danych.]
+    Hasła powinny być przechowywane z wykorzystaniem mechanizmu przeznaczonego do ich bezpiecznego haszowania. Tokeny i dane dostępowe do usług zewnętrznych nie powinny być ujawniane w interfejsie ani komunikatach błędów. Komunikacja w środowisku docelowym powinna być chroniona przez HTTPS.
+
+    \item[WN-02. Izolacja projektów.]
+    Użytkownik nieuprawniony nie powinien uzyskiwać danych innego projektu przez zmianę identyfikatora w żądaniu. Weryfikacja musi obejmować zarówno operacje zapisu, jak i odczyt oraz kanały aktualizacji w czasie rzeczywistym.
+
+    \item[WN-03. Spójność danych.]
+    Operacje powinny zachowywać reguły domenowe i nie dopuszczać do częściowego zastosowania zmian, jeżeli prowadziłoby to do niepoprawnego stanu. Zastosowanie rekomendacji powinno uwzględniać aktualny stan zadań i uprawnienia użytkownika.
+
+    \item[WN-04. Niezawodna obsługa błędów.]
+    Niepowodzenie usługi zewnętrznej lub analizy w tle powinno prowadzić do jednoznacznego statusu błędu. Użytkownik powinien mieć możliwość rozpoznania, czy operacja zakończyła się poprawnie.
+
+    \item[WN-05. Responsywność.]
+    Oczekiwanie na wynik analizy nie powinno uniemożliwiać korzystania z pozostałych funkcji aplikacji. Czasy odpowiedzi należy zmierzyć dla określonej konfiguracji środowiska, liczby zadań i obciążenia. Progi akceptacji powinny zostać ustalone przed eksperymentem wydajnościowym.
+
+    \item[WN-06. Modularność.]
+    Moduły powinny posiadać określone odpowiedzialności i komunikować się przez jawne kontrakty. Zależności pomiędzy warstwami powinny podlegać weryfikacji testami architektury.
+
+    \item[WN-07. Testowalność.]
+    Logika analityczna i domenowa powinna umożliwiać testowanie bez każdorazowego uruchamiania całej aplikacji. Zależności od czasu, bazy danych i LLM powinny być możliwe do kontrolowania w testach.
+
+    \item[WN-08. Wyjaśnialność.]
+    Wyniki powinny zawierać informacje o zastosowanej metodzie, podstawowych założeniach i ograniczeniach. Uzasadnienie powinno odpowiadać rzeczywistemu sposobowi wyznaczenia wyniku.
+
+    \item[WN-09. Odtwarzalność badań.]
+    Eksperymenty powinny rejestrować wersję metody, dane wejściowe i konfigurację. Dla LLM należy uwzględnić identyfikator modelu i treść zapytania; zapis tych informacji nie gwarantuje identyczności kolejnych odpowiedzi.
+
+    \item[WN-10. Użyteczność interfejsu.]
+    Aplikacja powinna stosować spójne nazewnictwo, prezentować stan ładowania i błędy oraz wyraźnie odróżniać rekomendację od zmiany już zastosowanej.
+
+    \item[WN-11. Kontrola danych przekazywanych do LLM.]
+    Zakres danych wysyłanych do usługi zewnętrznej powinien być określony i ograniczony do informacji potrzebnych do estymacji. Konfiguracja integracji powinna umożliwiać identyfikację użytej usługi i modelu.
+\end{description}
+
+Weryfikacja tych wymagań obejmuje różne metody. Izolację dostępu sprawdza się scenariuszami pozytywnymi i negatywnymi, modularność testami zależności, a responsywność pomiarami. Ocena nie powinna ograniczać się do deklaracji, że system posiada daną właściwość.
+
+
+\section{Najważniejsze przypadki użycia}
+\label{sec:przypadki-uzycia}
+
+Przypadki użycia przedstawiają działania użytkowników prowadzące do osiągnięcia określonego celu. Opisują zachowanie docelowe, a ich realizacja podlega sprawdzeniu w części testowej pracy.
+
+\subsection{Utworzenie projektu i przygotowanie zespołu}
+\label{subsec:pu-utworzenie-projektu}
+
+\textbf{Aktor:} zalogowany użytkownik posiadający uprawnienie do tworzenia projektów.
+
+\textbf{Warunek wstępny:} użytkownik posiada aktywną sesję.
+
+Użytkownik podaje dane projektu i zatwierdza jego utworzenie. System weryfikuje dane oraz zapisuje przedsięwzięcie. Następnie uprawniona osoba określa uczestników, ich role, kompetencje, pojemność i stawki godzinowe.
+
+\textbf{Rezultat:} projekt jest dostępny dla uprawnionych osób i posiada dane zespołu potrzebne do dalszego planowania.
+
+\textbf{Przebieg alternatywny:} niepoprawne dane lub brak uprawnień powodują odrzucenie operacji i przedstawienie odpowiedniego komunikatu.
+
+
+\subsection{Przygotowanie backlogu i zaplanowanie sprintu}
+\label{subsec:pu-planowanie-sprintu}
+
+\textbf{Aktor:} użytkownik posiadający uprawnienia do zarządzania zadaniami i sprintami.
+
+\textbf{Warunek wstępny:} istnieje dostępny projekt.
+
+Użytkownik tworzy zadania, uzupełnia ich opisy, oszacowania, wartość biznesową i zależności. Następnie tworzy sprint, określa jego termin i przypisuje wybrane elementy backlogu. Po rozpoczęciu sprintu zespół aktualizuje stany zadań na tablicy.
+
+\textbf{Rezultat:} system przechowuje zakres zaplanowanej pracy i umożliwia śledzenie jej realizacji.
+
+\textbf{Przebieg alternatywny:} niepoprawne daty, niedozwolone powiązania lub brak uprawnień uniemożliwiają zapis odpowiedniej zmiany.
+
+
+\subsection{Analiza ryzyka i priorytetyzacja backlogu}
+\label{subsec:pu-ryzyko-priorytety}
+
+\textbf{Aktor:} kierownik projektu lub inny uprawniony użytkownik.
+
+\textbf{Warunek wstępny:} projekt zawiera zadania możliwe do analizy.
+
+Użytkownik uruchamia ocenę ryzyka. System rejestruje operację, wykonuje obliczenia i udostępnia wynik wraz z czynnikami wpływającymi na ocenę. Następnie użytkownik uruchamia priorytetyzację backlogu i przegląda rekomendowaną kolejność.
+
+\textbf{Rezultat:} użytkownik otrzymuje informacje o ryzyku i propozycję uporządkowania pracy. Zmiana kolejności następuje po zatwierdzeniu.
+
+\textbf{Przebieg alternatywny:} brak danych lub błąd obliczeń prowadzą do przedstawienia ograniczenia albo statusu niepowodzenia. Odrzucenie rekomendacji nie zmienia backlogu.
+
+
+\subsection{Analiza harmonogramu i zastosowanie propozycji przydziału}
+\label{subsec:pu-harmonogram}
+
+\textbf{Aktor:} kierownik projektu lub inny użytkownik uprawniony do planowania.
+
+\textbf{Warunek wstępny:} dostępne są zadania, ich zależności i dane zespołu.
+
+Użytkownik przegląda harmonogram, terminy i zadania krytyczne. Następnie uruchamia przygotowanie propozycji przydziału pracy. System przedstawia proponowanych wykonawców, założenia i ograniczenia metody. Użytkownik zatwierdza całość lub wybrane zmiany.
+
+\textbf{Rezultat:} zaakceptowane przypisania zostają zapisane po sprawdzeniu ich aktualnej dopuszczalności.
+
+\textbf{Przebieg alternatywny:} brak odpowiednich wykonawców, cykl zależności lub zmiana danych od czasu analizy wymagają zgłoszenia problemu, odrzucenia niedopuszczalnej zmiany albo ponownego przeliczenia wyniku.
+
+
+\subsection{Przygotowanie estymacji kosztów}
+\label{subsec:pu-estymacja-kosztow}
+
+\textbf{Aktor:} użytkownik uprawniony do analizy kosztów projektu.
+
+\textbf{Warunek wstępny:} dostępny jest backlog i konfiguracja integracji z LLM. Braki w danych zespołu lub stawkach muszą być jawnie obsłużone.
+
+Użytkownik uruchamia estymację. System przygotowuje kontekst projektu, przekazuje go do modelu i odbiera ustrukturyzowaną odpowiedź. Po weryfikacji wynik zostaje zapisany i udostępniony wraz z wariantami, składnikami kosztów oraz założeniami. Użytkownik porównuje estymację z budżetem i analizuje rekomendacje redukcji kosztów.
+
+\textbf{Rezultat:} dostępny jest wynik estymacji powiązany z projektem i możliwy do późniejszego przeglądania.
+
+\textbf{Przebieg alternatywny:} błąd usługi, niezgodna struktura lub niespójne obliczenia powodują odrzucenie wyniku albo uruchomienie określonej procedury korekty. Niepoprawny rezultat nie powinien być prezentowany jako zatwierdzony kosztorys.
+
+
+\section{Ograniczenia i kryteria oceny rozwiązania}
+\label{sec:ograniczenia-i-kryteria}
+
+Podstawowym ograniczeniem jest dostępność danych historycznych. Wytrenowanie i wiarygodna ocena modelu opóźnień wymagają informacji o stanie projektu w chwili prognozy oraz późniejszych rezultatach. Bieżąca lista zadań nie zawiera danych pozwalających odtworzyć taki stan, ponieważ system przechowuje wartości aktualne, a nie ich historię.
+
+Ograniczenie to zostało w implementacji zaadresowane, lecz nie usunięte. Rejestrowanie wektorów cech i wyników realizacji uruchomiono, dzięki czemu zbiór uczący powstaje wraz z kolejnymi analizami. Jego liczebność zależy jednak od czasu eksploatacji systemu i liczby prowadzonych w nim projektów. W chwili sporządzania niniejszego opisu nie dysponowano zbiorem wystarczającym do dopasowania i rzetelnej oceny modelu, a ograniczenie to nie może zostać zniesione przez jednorazowe działanie implementacyjne.
+
+Dane syntetyczne mogą służyć do sprawdzania poprawności mechanizmów i zachowania w kontrolowanych scenariuszach. Wyniki uzyskane wyłącznie na takich danych nie stanowią jednak wystarczającego dowodu skuteczności w rzeczywistych organizacjach.
+
+Kolejnym ograniczeniem są uproszczenia modelu planowania. Obecna implementacja wykorzystuje punkty jako podstawę czasu trwania, stałą pojemność członka zespołu i dopasowanie kompetencji na podstawie oznaczeń występujących w tytule zadania. Założenia te wymagają jawnego przedstawienia i nie powinny być utożsamiane z pełnym modelem kalendarza pracy lub kompetencji.
+
+Estymacja kosztów zależy od kompletności backlogu, poprawności stawek oraz zachowania usługi LLM. Poprawność struktury odpowiedzi nie gwarantuje trafności nakładu pracy. Również deklarowana przez model pewność nie stanowi empirycznej miary jakości.
+
+Przyjęto następujące kryteria oceny:
+\begin{enumerate}
+    \item \textbf{Zgodność funkcjonalna} --- możliwość wykonania określonych przypadków użycia oraz prawidłowa obsługa błędów i braku uprawnień.
+    \item \textbf{Poprawność architektury} --- zgodność zależności z przyjętym podziałem modułów i warstw.
+    \item \textbf{Jakość predykcji} --- wyniki na wydzielonych danych testowych w porównaniu z metodą bazową.
+    \item \textbf{Jakość priorytetyzacji} --- zgodność z kryteriami, stabilność i wrażliwość rankingu na zmianę danych oraz wag.
+    \item \textbf{Jakość harmonogramowania} --- poprawność terminów i ścieżki krytycznej dla znanych przypadków oraz wykrywanie niepoprawnych zależności.
+    \item \textbf{Jakość przydziału} --- spełnienie ograniczeń i rozkład obciążenia odniesiony do pojemności wykonawców.
+    \item \textbf{Jakość estymacji kosztów} --- zgodność z danymi wejściowymi, poprawność rachunkowa, błąd względem wartości referencyjnych i powtarzalność.
+    \item \textbf{Sprawność działania} --- czas odpowiedzi i wykonania analiz dla określonych danych oraz warunków środowiskowych.
+    \item \textbf{Przejrzystość rekomendacji} --- możliwość ustalenia zastosowanej metody, założeń i ograniczeń wyniku.
+\end{enumerate}
+
+Kryteria te będą stosowane oddzielnie do poszczególnych mechanizmów. Poprawna obsługa zadań nie potwierdza trafności prognozy, a wygenerowanie poprawnego kosztorysu pod względem rachunkowym nie dowodzi zgodności z przyszłym kosztem rzeczywistym.
+
+Tak określone wymagania i kryteria stanowią podstawę projektu architektury przedstawionego w kolejnym rozdziale oraz planu weryfikacji systemu.
