@@ -212,29 +212,17 @@ Nazwy sugerujące kwantyle nie powinny przesłaniać charakteru tych wartości. 
 
 Zastąpienie heurystyki modelem uczonym wymaga spełnienia kilku warunków, z których dopasowanie samego modelu jest ostatnim, a nie pierwszym. Wcześniej konieczne jest określenie zdarzenia docelowego, zapewnienie możliwości wymiany metody bez przebudowy modułu oraz zgromadzenie obserwacji, na których uczenie miałoby się odbywać.
 
-W systemie zrealizowano wszystkie te elementy. Zdefiniowano zdarzenie docelowe i sposób jego etykietowania, wprowadzono granicę modelu opisaną w sekcji~\ref{sec:granica-modelu-ai}, uruchomiono rejestrowanie danych uczących, a następnie dopasowano model regresji logistycznej i wdrożono go jako drugą implementację tej granicy.
+W systemie zrealizowano wszystkie te elementy: zdefiniowano zdarzenie docelowe i sposób jego etykietowania, wprowadzono granicę modelu opisaną w sekcji~\ref{sec:granica-modelu-ai}, uruchomiono rejestrowanie danych uczących, a następnie dopasowano model regresji logistycznej i wdrożono go jako drugą implementację tej granicy.
 
-Model nie został jednak wytrenowany na danych zgromadzonych przez sam system, ponieważ te dopiero narastają. Wykorzystano publiczny zbiór projektów prowadzonych w metodyce zwinnej, co przenosi ciężar dyskusji z pytania o dostępność danych na pytanie o przenoszalność wyników pomiędzy organizacjami. Zagadnieniu temu poświęcono osobną podsekcję.
-
-W dalszej części omówiono kolejno: model bazowy, konstrukcję etykiety i wektora cech, mechanizm gromadzenia obserwacji, dobór i ocenę modelu uczonego, jego wdrożenie oraz ograniczenia przyjętego rozwiązania. Konsekwentnie oddzielono wielkości zmierzone od przyjętych założeń.
+Model nie został jednak wytrenowany na danych zgromadzonych przez sam system, ponieważ te dopiero narastają. Wykorzystano publiczny zbiór projektów prowadzonych w metodyce zwinnej, co przenosi ciężar dyskusji z pytania o dostępność danych na pytanie o przenoszalność wyników pomiędzy organizacjami.
 
 \subsection{Model bazowy jako nazwany i wersjonowany artefakt}
 
-Heurystykę opisaną w sekcji poprzedniej wydzielono jako implementację interfejsu modelu predykcyjnego, występującą pod nazwą \texttt{WeightedScorecard v1}. Nazwa ta jest zapisywana wraz z każdym uruchomieniem analizy, obok liczby dni historii wykorzystanej przez model i listy przyjętych przez niego założeń.
+Heurystykę opisaną w sekcji poprzedniej wydzielono jako implementację interfejsu modelu predykcyjnego, występującą pod nazwą \texttt{WeightedScorecard v1}. Nazwa ta jest zapisywana wraz z każdym uruchomieniem analizy, obok liczby dni historii wykorzystanej przez model i listy przyjętych założeń. W polu opisującym zakres historii model heurystyczny zwraca wartość zerową, co stanowi jawną deklarację, że prognoza nie została dopasowana do żadnych danych.
 
-Model heurystyczny zwraca w polu opisującym zakres historii wartość zerową. Jest to jawna deklaracja, że prognoza nie została dopasowana do żadnych danych. Towarzyszą jej trzy stałe założenia przekazywane użytkownikowi wraz z wynikiem:
+Towarzyszą jej trzy stałe założenia przekazywane użytkownikowi: że ryzyko wyznacza deterministyczna heurystyka ważona obejmująca presję terminu, otwarte zależności blokujące, brak wykonawcy i rozmiar zadania; że w systemie nie istnieją jeszcze dane o rzeczywistych wynikach realizacji, wobec czego heurystyka nie została skalibrowana, a jej wagi są wartościami poglądowymi; oraz że prognoza sprintu opiera się na tempie wyznaczonym zgodnie z sekcją~\ref{subsec:velocity-estimator}. Drugie z nich odnosi się do braku danych zgromadzonych przez samo wdrożenie, a nie do braku modelu uczonego w ogóle — ten dopasowano do danych zewnętrznych, co jest sytuacją odrębną od skalibrowania heurystyki na wynikach tego systemu.
 
-\begin{itemize}
-    \item ryzyko jest oceniane przez deterministyczną heurystykę ważoną, obejmującą presję terminu, otwarte zależności blokujące, brak wykonawcy i rozmiar zadania, a nie przez model statystyczny lub uczony;
-    \item w systemie nie istnieją jeszcze dane o rzeczywistych wynikach realizacji, wobec czego heurystyka nie została skalibrowana ani zweryfikowana wstecz, a jej wagi stanowią ustalone wartości poglądowe;
-    \item prognoza sprintu opiera się na tempie wyznaczonym zgodnie z sekcją~\ref{subsec:velocity-estimator}, przy czym treść tego założenia zmienia się zależnie od tego, czy tempo zostało zmierzone na zakończonych sprintach projektu, czy przyjęte z reguły planistycznej.
-\end{itemize}
-
-Drugie z wymienionych założeń wymaga komentarza, ponieważ przytoczono je w brzmieniu zapisanym w implementacji. Odnosi się ono do braku danych zgromadzonych przez sam system, a nie do braku mechanizmu ich rejestrowania ani do braku modelu uczonego w ogóle. Model opisany w dalszej części sekcji został bowiem dopasowany do danych zewnętrznych, co jest sytuacją odrębną od skalibrowania heurystyki na wynikach tego wdrożenia.
-
-Takie potraktowanie heurystyki nie jest zabiegiem wyłącznie porządkowym. Metoda bazowa musi pozostać uruchamialna również po wprowadzeniu modelu uczonego, ponieważ stanowi warunek kontrolny porównania. Stwierdzenie, że model uczony przewyższa heurystykę o określoną wartość, jest możliwe tylko wtedy, gdy obie metody można wykonać na tych samych danych i w tych samych warunkach.
-
-Zapisywanie nazwy modelu przy każdym uruchomieniu pozwala ponadto odróżnić oceny pochodzące z różnych metod po fakcie. Bez tej informacji zbiór wcześniejszych analiz stałby się po zmianie metody niejednorodny w sposób nierozpoznawalny.
+Takie potraktowanie heurystyki nie jest zabiegiem wyłącznie porządkowym. Metoda bazowa musi pozostać uruchamialna również po wprowadzeniu modelu uczonego, ponieważ stanowi warunek kontrolny porównania: stwierdzenie, że model przewyższa heurystykę o określoną wartość, jest możliwe tylko wtedy, gdy obie metody można wykonać na tych samych danych. Zapisywanie nazwy modelu pozwala ponadto odróżnić oceny pochodzące z różnych metod po fakcie; bez tej informacji zbiór wcześniejszych analiz stałby się po zmianie metody niejednorodny w sposób nierozpoznawalny.
 
 \subsection{Zdarzenie docelowe i konstrukcja etykiety}
 
@@ -301,33 +289,21 @@ Obciążenie projektu i poszczególnych wykonawców jest wyznaczane raz na uruch
 
 \subsection{Rejestrowanie i etykietowanie obserwacji}
 
-Rejestrowanie danych realizuje odrębny komponent, uruchamiany przy każdym wykonaniu analizy ryzyka. Wykonuje on dwie czynności: zapisuje wektory cech bieżącego przebiegu wraz z wygenerowaną dla nich prognozą oraz uzupełnia o rzeczywisty wynik te wcześniejsze obserwacje, których rezultat stał się już znany.
+Rejestrowanie danych realizuje odrębny komponent, uruchamiany przy każdym wykonaniu analizy ryzyka. Zapisuje on wektory cech bieżącego przebiegu wraz z wygenerowaną prognozą i nazwą modelu, który ją wykonał, w ramach tej samej transakcji co wyniki analizy, a następnie uzupełnia o rzeczywisty wynik te wcześniejsze obserwacje, których rezultat stał się już znany. Każdy wiersz stanowi dzięki temu kompletną parę: stan znany danego dnia oraz sformułowane na jego podstawie przewidywanie.
 
-Zapis odbywa się w ramach tej samej transakcji co zapis wyników analizy. Wraz z cechami rejestrowana jest prognoza wygenerowana w danym przebiegu oraz nazwa modelu, który ją wykonał. Dzięki temu każdy wiersz stanowi kompletną parę: stan znany danego dnia oraz przewidywanie sformułowane na jego podstawie.
+Uzupełnianie wyników zrealizowano jako odczyt bieżącego stanu zadań przy okazji kolejnych analiz, a nie jako reakcję na zdarzenie zakończenia zadania. Zdarzenie takie nie wystąpiłoby bowiem w przypadku najistotniejszym dla predykcji, czyli dla zadania pozostającego długo otwartym po upływie terminu, a data zakończenia jest trwale zapisywana, więc późniejsze ustalenie wyniku nie powoduje utraty dokładności. Obserwacje z bieżącego przebiegu są przy tym uwzględniane łącznie z wcześniejszymi, ponieważ zapytanie do bazy nie widzi wierszy dodanych w tej samej, jeszcze niezatwierdzonej transakcji.
 
-Uzupełnianie wyników zrealizowano jako odczyt bieżącego stanu zadań przy okazji kolejnych analiz, a nie jako reakcję na zdarzenie zakończenia zadania. Przyjęto to rozwiązanie z dwóch powodów. Zdarzenie zakończenia nie wystąpiłoby w przypadku najistotniejszym z punktu widzenia predykcji, to znaczy dla zadania pozostającego długo otwartym po upływie terminu. Ponadto data zakończenia zadania jest trwale zapisywana, więc późniejsze ustalenie wyniku nie powoduje utraty dokładności, a jedynie opóźnia moment uzupełnienia wiersza.
+Mechanizm ten zapisuje dane, z których żaden element systemu obecnie nie korzysta. Nie jest to przeoczenie, lecz konsekwencja wskazanej wcześniej właściwości: wektor cech niezapisany w danym dniu nie może zostać odtworzony później, wobec czego zbiór uczący nie powstaje wstecz, lecz narasta od momentu uruchomienia rejestrowania.
 
-Obserwacje zapisane w bieżącym przebiegu są uwzględniane przy uzupełnianiu wyników łącznie z wcześniejszymi. Zapytanie do bazy danych nie widzi bowiem wierszy dodanych w tej samej, jeszcze niezatwierdzonej transakcji. Bez jawnego ich dołączenia zadanie zarejestrowane jako już przeterminowane oczekiwałoby na ustalenie wyniku aż do następnego uruchomienia analizy.
+\subsection{Obserwacje cenzurowane i właściwości zbioru}
 
-Warto podkreślić, że mechanizm ten zapisuje dane, z których żaden element systemu obecnie nie korzysta. Nie jest to przeoczenie, lecz konsekwencja wskazanej wcześniej właściwości: system przechowuje stan bieżący, więc wektor cech niezapisany w danym dniu nie może zostać odtworzony później. Zbiór uczący nie powstaje wstecz, lecz wyłącznie narasta od momentu uruchomienia rejestrowania.
+Odrębnego potraktowania wymagają zadania otwarte i jednocześnie przeterminowane. Wiadomo o nich, że opóźnienie już wystąpiło, lecz zapisana liczba dni stanowi wyłącznie jego dolne ograniczenie. Obserwacje takie oznaczane są jako cenzurowane i pozostają na liście wierszy podlegających ponownemu rozstrzygnięciu, aż do faktycznego zakończenia zadania, gdy dolne ograniczenie zostaje zastąpione wartością rzeczywistą.
 
-\subsection{Obserwacje cenzurowane}
+Rozróżnienie to ma znaczenie dla poprawności późniejszego uczenia. Potraktowanie wartości cenzurowanej jako dokładnej prowadziłoby do systematycznego zaniżania prognozowanego opóźnienia, ponieważ największe opóźnienia byłyby zapisywane z wartościami zmierzonymi przed zakończeniem zadania. Ryzyko to dotyczy zwłaszcza sformułowania regresyjnego. Uwzględniono również przypadki, w których etykieta nie może powstać mimo zarejestrowania obserwacji: usunięcie terminu lub samego zadania pozostawia wiersz nierozstrzygnięty, bez uzupełniania go wartościami zastępczymi.
 
-Odrębnego potraktowania wymagają zadania otwarte i jednocześnie przeterminowane. Wiadomo o nich, że opóźnienie już wystąpiło, nie jest natomiast znana jego ostateczna wielkość. Zapisana liczba dni stanowi wyłącznie dolne ograniczenie.
+Ponieważ obserwacja zapisywana jest przy każdym uruchomieniu analizy, to samo zadanie dostarcza z czasem kilku przykładów dzielących ostatecznie jeden wynik. Jest to zamierzone, lecz powoduje, że obserwacje nie są wzajemnie niezależne, a podział danych musi grupować je według zadania; podział losowy prowadziłby do zawyżonej oceny jakości modelu.
 
-Obserwacje takie są oznaczane jako cenzurowane i pozostają na liście wierszy podlegających ponownemu rozstrzygnięciu. Przy kolejnych uruchomieniach analizy są sprawdzane ponownie, a po faktycznym zakończeniu zadania dolne ograniczenie zostaje zastąpione wartością rzeczywistą i oznaczenie cenzurowania jest zdejmowane.
-
-Rozróżnienie to ma znaczenie dla poprawności późniejszego uczenia. Potraktowanie wartości cenzurowanej jako dokładnej prowadziłoby do systematycznego zaniżania prognozowanego opóźnienia, ponieważ największe opóźnienia byłyby zapisywane z wartościami zmierzonymi przed zakończeniem zadania. Ryzyko to dotyczy zwłaszcza sformułowania regresyjnego, w którym wielkość opóźnienia jest zmienną objaśnianą.
-
-Uwzględniono również przypadki, w których etykieta nie może powstać mimo wcześniejszego zarejestrowania obserwacji. Termin zadania może zostać usunięty po wykonaniu prognozy, a samo zadanie może zostać usunięte z projektu. Wiersze takie pozostają nierozstrzygnięte i nie są uzupełniane wartościami zastępczymi.
-
-\subsection{Właściwości zgromadzonego zbioru}
-
-Ponieważ obserwacja jest zapisywana przy każdym uruchomieniu analizy, to samo zadanie dostarcza z czasem kilku przykładów, opisujących różne momenty jego realizacji i dzielących ostatecznie jeden wynik. Jest to zamierzone, gdyż każdy wiersz stanowi odrębną parę stanu i rezultatu. Powoduje jednak, że obserwacje nie są wzajemnie niezależne.
-
-Konsekwencją tej właściwości jest wymaganie wobec podziału danych. Musi on grupować obserwacje według zadania, tak aby różne migawki tego samego zadania nie trafiły jednocześnie do zbioru uczącego i testowego. Podział losowy prowadziłby tu do zawyżonej oceny jakości modelu.
-
-Zbiór ten nie osiągnął dotąd liczebności pozwalającej na dopasowanie modelu. Stanowiło to bezpośrednią przyczynę sięgnięcia po dane zewnętrzne, opisane w kolejnych podsekcjach. Jego docelową rolą nie jest już zatem dostarczenie pierwszego modelu, lecz umożliwienie rekalibracji modelu wytrenowanego gdzie indziej oraz zmierzenie, czy przewyższa on heurystykę w warunkach tego wdrożenia.
+Zbiór ten nie osiągnął dotąd liczebności pozwalającej na dopasowanie modelu, co stanowiło bezpośrednią przyczynę sięgnięcia po dane zewnętrzne. Jego docelową rolą nie jest zatem dostarczenie pierwszego modelu, lecz umożliwienie rekalibracji modelu wytrenowanego gdzie indziej oraz zmierzenie, czy przewyższa on heurystykę w warunkach tego wdrożenia.
 
 \subsection{Dobór zbioru danych i odrzucona próba pierwsza}
 \label{subsec:dobor-zbioru-danych}
@@ -445,19 +421,15 @@ Wdrożono w konsekwencji regresję logistyczną nad pięcioma przekształconymi 
 
 \subsection{Ograniczenie wynikające z możliwości obliczenia cech}
 
-Zestaw cech wdrożonego modelu jest węższy niż zestaw najlepszy w studium. Dwie cechy strukturalne pominięto, ponieważ system nie potrafi ich wyznaczyć dla zadania ocenianego na bieżąco: wiek zadania w backlogu, gdyż model danych nie zapisuje momentu utworzenia zadania, oraz liczbę powiązań innych niż blokujące, której nie udostępnia kontrakt międzymodułowy.
+Zestaw cech wdrożonego modelu jest węższy niż najlepszy zestaw ze studium. Dwie cechy strukturalne pominięto, ponieważ system nie potrafi ich wyznaczyć dla zadania ocenianego na bieżąco: wiek zadania w backlogu, gdyż model danych nie zapisuje momentu jego utworzenia, oraz liczbę powiązań innych niż blokujące, której nie udostępnia kontrakt międzymodułowy.
 
-Uczenie na cechach niemożliwych do obliczenia podczas eksploatacji prowadzi do rozbieżności między warunkami uczenia a warunkami użycia. Model osiąga wtedy dobre wyniki w ocenie offline, a następnie traci jakość w działaniu, ponieważ brakujące wielkości są zastępowane wartościami domyślnymi. Zdecydowano się ponieść ten koszt jawnie i zmierzyć go: pominięcie obu cech kosztuje 0,011 wartości pola pod krzywą ROC.
+Uczenie na cechach niemożliwych do obliczenia podczas eksploatacji prowadzi do rozbieżności między warunkami uczenia a warunkami użycia: model osiąga wtedy dobre wyniki offline, a następnie traci jakość w działaniu, ponieważ brakujące wielkości są zastępowane wartościami domyślnymi. Zdecydowano się ponieść ten koszt jawnie i zmierzyć go — pominięcie obu cech kosztuje 0,011 wartości pola pod krzywą ROC.
 
-Odwzorowanie pozostałych pięciu cech na dane PlanWise zapisano wprost, ponieważ jest to miejsce, w którym błąd nie ujawniłby się w żaden inny sposób. Liczba powiązań blokujących jest sumą poprzedników zadania i zadań przez nie blokowanych, gdyż zbiór uczący zlicza powiązania bez rozróżniania kierunku. Pozostałe cechy to oszacowanie punktowe zadania oraz trzy wielkości opisujące sprint: liczba zadań, suma punktów i długość w dniach.
-
-Zadanie nieprzypisane do żadnego sprintu nie ma tych trzech wielkości określonych. Stosowana jest wówczas mediana z danych uczących, a fakt ten jest odnotowywany w wyjaśnieniu. Brak sprintu oznacza bowiem wielkość nieznaną, a nie równą zeru.
+Odwzorowanie pozostałych pięciu cech na dane PlanWise zapisano wprost, ponieważ jest to miejsce, w którym błąd nie ujawniłby się w żaden inny sposób. Liczba powiązań blokujących jest sumą poprzedników zadania i zadań przez nie blokowanych, gdyż zbiór uczący zlicza powiązania bez rozróżniania kierunku; pozostałe cechy to oszacowanie punktowe oraz trzy wielkości opisujące sprint: liczba zadań, suma punktów i długość w dniach. Zadanie nieprzypisane do sprintu nie ma tych trzech wielkości określonych, wobec czego stosowana jest mediana z danych uczących, odnotowywana w wyjaśnieniu — brak sprintu oznacza bowiem wielkość nieznaną, a nie równą zeru.
 
 \subsection{Kalibracja i postać wdrożonego modelu}
 
-Ocena wykazała, że kalibracja jest słaba we wszystkich rozważanych wariantach, przy wartościach miary Briera w przedziale od 0,243 do 0,267 wobec 0,246 dla metody odniesienia. Surowe wyjście modelu nie nadaje się zatem do prezentowania jako wartość procentowa.
-
-Zastosowano kalibrację metodą Platta, to znaczy dopasowanie funkcji logistycznej do wartości funkcji decyzyjnej modelu. Wybrano ją po porównaniu z kalibracją izotoniczną, która wypadła nieznacznie gorzej na projektach niewidzianych, przy wartościach miary Briera odpowiednio 0,2400 i 0,2413.
+Kalibracja okazała się słaba we wszystkich rozważanych wariantach, przy wartościach miary Briera od 0,243 do 0,267 wobec 0,246 dla metody odniesienia, wobec czego surowe wyjście modelu nie nadaje się do prezentowania jako wartość procentowa. Zastosowano kalibrację metodą Platta, wybraną po porównaniu z kalibracją izotoniczną, która wypadła nieznacznie gorzej na projektach niewidzianych — wartości miary Briera wyniosły odpowiednio 0,2400 i 0,2413.
 
 Ostateczne przetworzenie pojedynczej cechy obejmuje kolejno: zastąpienie wartości brakującej medianą, obcięcie do wartości nieujemnych, przekształcenie \(\log(1+x)\), standaryzację i przemnożenie przez współczynnik. Suma wkładów powiększona o wyraz wolny tworzy wartość funkcji decyzyjnej, która następnie podlega kalibracji.
 
@@ -491,31 +463,21 @@ Dopasowane współczynniki przedstawia tabela~\ref{tab:wspolczynniki-modelu}. Od
 
 Zależność ujemna dla sumy punktów przypisanych do sprintu zasługuje na komentarz, ponieważ przeczy oczekiwaniu, że większe zobowiązanie jest trudniejsze do dotrzymania. Jest ona jednak zgodna z obserwacją surową: sprinty o zobowiązaniu poniżej dwudziestu punktów wykazują 48,6\% opóźnień, a sprinty o zobowiązaniu od stu do dwustu punktów 37,5\%. Prawdopodobnym wyjaśnieniem jest to, że duże zobowiązanie świadczy o zespole planującym regularnie i mierzącym swoją przepustowość, podczas gdy sprinty bardzo małe powstają często w projektach prowadzonych dorywczo. Jest to hipoteza interpretacyjna, której w ramach pracy nie zweryfikowano.
 
-\subsection{Model wytrenowany jako implementacja granicy}
+\subsection{Wdrożenie modelu i wybór metody domyślnej}
 
-Model zapisano jako dokument opisujący jego współczynniki, parametry standaryzacji, mediany cech, kalibrację oraz metadane pochodzenia, a następnie osadzono w zasobach modułu. Rozwiązanie takie jest możliwe dzięki niewielkiemu rozmiarowi modelu liniowego i pozwala uniknąć wprowadzania do systemu dodatkowego środowiska wnioskowania.
+Model zapisano jako dokument opisujący współczynniki, parametry standaryzacji, mediany cech, kalibrację oraz metadane pochodzenia, a następnie osadzono w zasobach modułu. Rozwiązanie takie, możliwe dzięki niewielkiemu rozmiarowi modelu liniowego, pozwala uniknąć wprowadzania do systemu dodatkowego środowiska wnioskowania. Podczas wczytywania sprawdzana jest wersja schematu oraz nazwa zastosowanego przekształcenia, ponieważ nowsza wersja eksportu mogłaby zmienić postać obliczeń przy zachowaniu tych samych nazw pól; zatrzymanie uruchomienia z jawnym komunikatem jest bezpieczniejsze niż liczenie według niewłaściwego wzoru.
 
-Podczas wczytywania sprawdzana jest wersja schematu oraz nazwa zastosowanego przekształcenia. Nowsza wersja eksportu mogłaby bowiem zmienić postać obliczeń, zachowując te same nazwy pól, a zatrzymanie uruchomienia z jawnym komunikatem jest bezpieczniejsze niż wyznaczanie wartości według niewłaściwego wzoru.
+Wdrożony model wyznacza wyłącznie prawdopodobieństwo opóźnienia zadania. Prognoza wykonania sprintu oraz szacowany wpływ na termin nadal pochodzą z mechanizmów heurystycznych, ponieważ zbiór uczący nie zawiera informacji o tym, o ile dni opóźniło się zgłoszenie. Rozróżnienie to zapisywane jest w założeniach towarzyszących każdemu uruchomieniu, podobnie jak ostrzeżenie zależne od danych: każda obserwacja ucząca dotyczyła zgłoszenia przypisanego do sprintu, wobec czego zadanie z backlogu leży poza rozkładem, na którym model dopasowano, a informacja o liczbie takich zadań jest dołączana, gdy w przebiegu wystąpiły.
 
-Wdrożony model wyznacza wyłącznie prawdopodobieństwo opóźnienia zadania. Prognoza wykonania sprintu oraz szacowany wpływ na termin nadal pochodzą z mechanizmów opisanych w sekcji poprzedniej, ponieważ zbiór uczący nie zawiera informacji o tym, o ile dni opóźniło się zgłoszenie. Rozróżnienie to jest zapisywane w założeniach towarzyszących każdemu uruchomieniu: model, który jawnie wskazuje, która część jego wyniku pochodzi z uczenia, jest wart więcej niż model tego nieujawniający.
+Opisane przetwarzanie ma dwie implementacje: w języku Python, w którym model przygotowano i oceniono, oraz w C\#, w którym jest wykonywany. Rozbieżność między nimi nie objawiłaby się błędem, lecz cichym zwracaniem wartości innych niż ocenione, dlatego zabezpieczono ją zestawem jedenastu przypadków wzorcowych obejmujących sytuacje brzegowe — zadanie bez oszacowania i bez sprintu, sprint o dacie zakończenia wcześniejszej od rozpoczęcia oraz wektor złożony z samych zer — porównywanych z dokładnością do dziesięciu miejsc po przecinku. Osobny test sprawdza, że suma wkładów cech odtwarza wartość funkcji decyzyjnej, czyli że prezentowane wyjaśnienie jest rzeczywistym rozkładem wyniku, a nie liczbami ilustracyjnymi.
 
-Do założeń dołączane jest również ostrzeżenie zależne od danych. Każda obserwacja ucząca dotyczyła zgłoszenia przypisanego do sprintu, wobec czego zadanie znajdujące się w backlogu leży poza rozkładem, na którym model dopasowano. Informacja o liczbie takich zadań jest dołączana tylko wtedy, gdy w danym przebiegu wystąpiły.
-
-\subsection{Zgodność dwóch implementacji i wybór modelu domyślnego}
-
-Opisane przetwarzanie ma dwie implementacje: w języku Python, w którym model przygotowano i oceniono, oraz w języku C\#, w którym jest wykonywany. Rozbieżność między nimi nie objawiłaby się błędem, lecz cichym zwracaniem wartości innych niż ocenione.
-
-Zabezpieczono to zestawem przypadków wzorcowych obejmujących jedenaście wektorów wejściowych, w tym przypadki brzegowe: zadanie bez oszacowania i bez sprintu, sprint o dacie zakończenia wcześniejszej od daty rozpoczęcia oraz wektor złożony z samych zer. Oczekiwane wartości wygenerowano implementacją referencyjną i porównuje się je z dokładnością do dziesięciu miejsc po przecinku. Osobny test sprawdza, że suma wkładów poszczególnych cech odtwarza wartość funkcji decyzyjnej, czyli że wyjaśnienie prezentowane użytkownikowi jest rzeczywistym rozkładem wyniku modelu, a nie liczbami o charakterze wyłącznie ilustracyjnym.
-
-Mimo wdrożenia modelu uczonego domyślną implementacją pozostaje heurystyka, a model uczony jest włączany ustawieniem konfiguracyjnym. Decyzja ta wynika z dwóch przesłanek. Wartość 0,59 stanowi sygnał rzeczywisty, lecz nie przewagę oczywistą nad dostrojoną heurystyką, a kalibracja pochodzi z danych innych organizacji. Przełączenie domyślnej metody powinno zatem zostać uzasadnione pomiarem na danych gromadzonych przez to wdrożenie, a nie samym wynikiem studium. Jest to praktyczne zastosowanie zasady, dla której model bazowy pozostawiono uruchamialnym.
+Mimo wdrożenia modelu uczonego domyślną implementacją pozostaje heurystyka, a model włączany jest ustawieniem konfiguracyjnym. Wartość 0,59 stanowi sygnał rzeczywisty, lecz nie przewagę oczywistą nad dostrojoną heurystyką, a kalibracja pochodzi z danych innych organizacji. Przełączenie metody domyślnej powinno zatem zostać uzasadnione pomiarem na danych tego wdrożenia, a nie samym wynikiem studium — jest to praktyczne zastosowanie zasady, dla której model bazowy pozostawiono uruchamialnym.
 
 \subsection{Ograniczenia i dalsze prace}
 
-Podstawowym ograniczeniem jest pochodzenie danych uczących. Zbiór obejmuje projekty otwartego oprogramowania, które mogą opóźniać się inaczej niż zespoły komercyjne działające pod presją zobowiązań wobec klienta. Prawdopodobieństwa nie zostały ponadto skalibrowane na wynikach tego wdrożenia, wobec czego należy je odczytywać jako sposób porządkowania uwagi, a nie jako dosłowne szanse wystąpienia zdarzenia.
+Podstawowym ograniczeniem jest pochodzenie danych uczących. Zbiór obejmuje projekty otwartego oprogramowania, które mogą opóźniać się inaczej niż zespoły komercyjne działające pod presją zobowiązań wobec klienta, a prawdopodobieństwa nie zostały skalibrowane na wynikach tego wdrożenia, wobec czego należy je odczytywać jako sposób porządkowania uwagi, a nie dosłowne szanse wystąpienia zdarzenia.
 
-Istotny jest również zakres kontekstu. Model dysponuje wielkościami opisującymi obciążenie sprintu, nie dysponuje natomiast historią przepustowości zespołu, w której prawdopodobnie znajduje się znaczna część brakującego sygnału. Uzupełnienie tej luki jest naturalnym kierunkiem dalszych prac, możliwym dopiero po zgromadzeniu odpowiedniej historii.
-
-W ocenie w przód w czasie odnotowano dodatkowo rzeczywistą zmianę charakterystyki danych: udział opóźnień w okresie testowym wynosił 53,3\% wobec 38,2\% w okresie uczącym. Nie jest to artefakt przygotowania danych, lecz zjawisko obniżające mierzone wartości, które wskazuje na potrzebę monitorowania jakości modelu w czasie.
+Ograniczony jest również zakres kontekstu: model dysponuje wielkościami opisującymi obciążenie sprintu, nie zaś historią przepustowości zespołu, w której prawdopodobnie znajduje się znaczna część brakującego sygnału. W ocenie w przód w czasie odnotowano ponadto rzeczywistą zmianę charakterystyki danych — udział opóźnień w okresie testowym wynosił 53,3\% wobec 38,2\% w uczącym — co wskazuje na potrzebę monitorowania jakości prognoz w czasie.
 
 \section{Wielokryterialna priorytetyzacja backlogu}
 
@@ -596,13 +558,9 @@ Ograniczenia tej metody są odmienne od ograniczeń heurystyki i wymagają odrę
 
 \subsection{Graf zależności i porządek obliczeń}
 
-Harmonogram jest obliczany przez klasę \texttt{ScheduleCalculator}. Zadania tworzą wierzchołki grafu, a relacje poprzedzania określają wymaganą kolejność. Na podstawie list poprzedników budowane są listy następników.
+Harmonogram jest obliczany przez klasę \texttt{ScheduleCalculator}. Zadania tworzą wierzchołki grafu, relacje poprzedzania określają wymaganą kolejność, a porządek ustalany jest algorytmem Kahna, przetwarzającym kolejno zadania, których poprzednicy zostali już uwzględnieni.
 
-Do ustalenia porządku wykorzystywany jest algorytm Kahna. Kolejno przetwarzane są zadania, których poprzednicy zostali już uwzględnieni.
-
-W poprawnym grafie acyklicznym pozwala to wykonać obliczenia w przód i wstecz. Implementacja posiada jednak zachowanie zastępcze dla elementów nierozstrzygniętych: dopisuje je do końca kolejności wejściowej.
-
-Takie elementy mogą należeć do cyklu lub być od niego zależne. Ich dopisanie umożliwia przygotowanie danych widoku, ale nie usuwa sprzeczności. Wyniki obliczeń dla takiego grafu nie powinny być interpretowane jako poprawny harmonogram CPM.
+W poprawnym grafie acyklicznym pozwala to wykonać obliczenia w przód i wstecz. Dla elementów nierozstrzygniętych — należących do cyklu lub od niego zależnych — implementacja stosuje zachowanie zastępcze, dopisując je do końca kolejności wejściowej. Umożliwia to przygotowanie danych widoku, lecz nie usuwa sprzeczności, wobec czego wyników obliczeń dla takiego grafu nie należy interpretować jako poprawnego harmonogramu CPM.
 
 \subsection{Czasy trwania i terminy}
 
@@ -730,19 +688,13 @@ Estymacja kosztów była pierwszym mechanizmem systemu korzystającym z modelu j
 
 \subsection{Przygotowanie kontekstu estymacji}
 
-Estymację uruchamia \texttt{CostEstimationJobHandler}. Procedura pobiera nazwę projektu, opcjonalną nazwę klienta, niezakończone zadania i zestaw stawek zespołu.
+Estymację uruchamia \texttt{CostEstimationJobHandler}, pobierając nazwę projektu, opcjonalną nazwę klienta, niezakończone zadania oraz zestaw stawek zespołu. Dla zadania przekazywane są tytuł, opis, priorytet i punkty; kontekst nie zawiera modelu zależności, wartości biznesowych ani rejestru rzeczywiście poniesionych kosztów.
 
-Dla zadania przekazywane są tytuł, opis, priorytet i punkty. Kontekst nie zawiera pełnego modelu zależności, wartości biznesowych ani rejestru rzeczywiście poniesionych kosztów.
-
-Analiza dotyczy zakresu niezakończonego. W przypadku prac rozpoczętych nie ma jednak osobnego oszacowania pozostałych godzin. Model otrzymuje opis i punkty zadania, dlatego rozróżnienie całkowitego nakładu od nakładu pozostałego wymaga dodatkowego doprecyzowania.
-
-Instrukcja przekazywana modelowi wskazuje brak historycznych danych o rzeczywistych wydatkach. Zapobiega to traktowaniu nieistniejących danych jako podstawy estymacji, choć sama instrukcja nie gwarantuje poprawności każdej wygenerowanej wypowiedzi.
+Analiza dotyczy zakresu niezakończonego, lecz dla prac rozpoczętych nie istnieje osobne oszacowanie pozostałych godzin, wobec czego rozróżnienie nakładu całkowitego od pozostałego wymagałoby doprecyzowania modelu danych. Instrukcja przekazywana modelowi wskazuje ponadto brak historycznych danych o rzeczywistych wydatkach, co zapobiega traktowaniu nieistniejących danych jako podstawy estymacji, choć sama nie gwarantuje poprawności każdej wygenerowanej wypowiedzi.
 
 \subsection{Wyznaczanie stawek dla ról}
 
-Zestaw stawek przygotowuje \texttt{ProjectMemberRateCardProvider}. Uwzględnia członków z dodatnią stawką i niepustą rolą. Role są grupowane bez rozróżniania wielkości liter.
-
-Dla grupy \(J_r\) reprezentującej rolę \(r\), stawki członka \(s_j\) i pojemności \(c_j\) stawka zbiorcza wynosi:
+Zestaw stawek przygotowuje \texttt{ProjectMemberRateCardProvider}, uwzględniając członków z dodatnią stawką i niepustą rolą, grupowanych bez rozróżniania wielkości liter. Dla grupy \(J_r\) reprezentującej rolę \(r\), stawki członka \(s_j\) i pojemności \(c_j\) stawka zbiorcza wynosi:
 
 \begin{equation}
     \bar{s}_r =
@@ -751,13 +703,9 @@ Dla grupy \(J_r\) reprezentującej rolę \(r\), stawki członka \(s_j\) i pojemn
     \label{eq:koszt-stawka-roli}
 \end{equation}
 
-o ile suma pojemności jest dodatnia. W przeciwnym razie stosowana jest zwykła średnia stawek. Wynik jest zaokrąglany do dwóch miejsc po przecinku.
+o ile suma pojemności jest dodatnia; w przeciwnym razie stosowana jest zwykła średnia stawek, zaokrąglana do dwóch miejsc po przecinku. Dostępność roli stanowi sumę pojemności jej wycenionych członków, natomiast osoby bez stawki lub roli są zwracane osobno jako niewycenione i nie wchodzą do agregacji.
 
-Dostępność roli jest sumą pojemności jej wycenionych członków. Osoby bez stawki lub roli są zwracane osobno jako niewycenione i nie wchodzą do tej agregacji.
-
-Jeżeli nie ma żadnej wycenionej osoby, stosowany jest zestaw zastępczy z jedną rolą \texttt{Team member}, stawką \(75\) USD za godzinę i dostępnością równą jeden. Jest to stała implementacyjna, a nie zweryfikowana stawka rynkowa. Kontekst nakazuje modelowi ujawnić zastępczy charakter danych.
-
-Waluta w analizowanym przebiegu jest ustalona jako USD. Nie zaimplementowano tutaj przeliczania walut. Wprowadzane stawki muszą być interpretowane zgodnie z tą konfiguracją.
+Przy braku jakiejkolwiek wycenionej osoby stosowany jest zestaw zastępczy z jedną rolą \texttt{Team member}, stawką \(75\) USD za godzinę i dostępnością równą jeden. Jest to stała implementacyjna, a nie zweryfikowana stawka rynkowa, dlatego kontekst nakazuje modelowi ujawnić zastępczy charakter tych danych. Waluta jest w analizowanym przebiegu ustalona jako USD, bez przeliczania walut.
 
 \subsection{Integracja z Anthropic i struktura odpowiedzi}
 
@@ -811,27 +759,15 @@ Dalsza walidacja powinna obejmować co najmniej zgodność ról i stawek, nieuje
 
 \subsection{Obsługa błędów i ponowienia}
 
-Klient podejmuje maksymalnie dwie próby w przypadku błędu deserializacji reprezentowanego przez \texttt{JsonException}. Oznacza to jedną próbę podstawową i co najwyżej jedno ponowienie.
+Klient podejmuje maksymalnie dwie próby w przypadku błędu deserializacji, co odpowiada jednej próbie podstawowej i najwyżej jednemu ponowieniu. Rozwiązanie to wynika z rozróżnienia dwóch rodzajów niepowodzeń: wymuszenie wywołania narzędzia zwiększa niezawodność odczytu, lecz jej nie gwarantuje, bo model może zwrócić wartość niezgodną z zadeklarowanym schematem, na przykład tekst w miejscu tablicy. Jest to odchylenie od schematu, które ponowienie ma szansę usunąć, podczas gdy niepowodzenie na poziomie HTTP, takie jak nieprawidłowe uwierzytelnienie, powtórzyłoby się identycznie i nie jest ponawiane.
 
-Rozwiązanie to wynika z rozróżnienia dwóch rodzajów niepowodzeń. Wymuszenie wywołania narzędzia zwiększa niezawodność odczytu, lecz jej nie gwarantuje: model może zwrócić wartość niezgodną z zadeklarowanym schematem, na przykład tekst w miejscu tablicy. Jest to odchylenie od schematu, a nie błąd komunikacji, i ponowienie zapytania ma szansę je usunąć. Niepowodzenie na poziomie HTTP, takie jak nieprawidłowe uwierzytelnienie, powtórzyłoby się natomiast identycznie, dlatego nie jest ponawiane.
-
-Również brak oczekiwanego bloku odpowiedzi nie musi być obsłużony przez tę samą ścieżkę, ponieważ jest sygnalizowany innym typem wyjątku.
-
-Mechanizm ogranicza część problemów z formatem, ale nie sprawdza jakości oszacowania. Poprawnie odczytany wynik może nadal zawierać błędne założenia lub niespójności rachunkowe.
-
-Niepowodzenie jest przekazywane do wspólnej obsługi zadań asynchronicznych, dzięki czemu klient może rozpoznać zakończenie analizy błędem.
+Mechanizm ogranicza zatem część problemów z formatem, lecz nie sprawdza jakości oszacowania: poprawnie odczytany wynik może nadal zawierać błędne założenia lub niespójności rachunkowe. Niepowodzenie przekazywane jest do wspólnej obsługi zadań asynchronicznych, dzięki czemu klient rozpoznaje zakończenie analizy błędem.
 
 \subsection{Historia i ponowne wykorzystanie estymacji}
 
-Przed wywołaniem modelu obliczany jest skrót SHA-256 wybranych danych wejściowych. Obejmuje uporządkowane niezakończone zadania i zagregowany zestaw stawek.
+Przed wywołaniem modelu obliczany jest skrót SHA-256 uporządkowanych niezakończonych zadań i zagregowanego zestawu stawek. Jeżeli ostatnia estymacja projektu ma taki sam skrót, zwracana jest lokalizacja istniejącego wyniku, co ogranicza ponowne wywołania przy niezmienionych danych. Porównanie dotyczy wyłącznie ostatniej estymacji, wobec czego nowe zlecenie może odwołać się do wcześniejszego rezultatu bez tworzenia nowego rekordu.
 
-Jeżeli ostatnia estymacja projektu posiada taki sam skrót, zwracana jest lokalizacja istniejącego wyniku. Ogranicza to ponowne wywołania przy niezmienionych danych i utrzymuje ten sam rezultat dla takiego odczytu.
-
-Porównanie dotyczy ostatniej estymacji, a nie wyszukiwania wszystkich historycznych wyników. Nowe zlecenie może więc odwołać się do wcześniejszego rezultatu bez utworzenia nowego rekordu estymacji.
-
-Skrót nie obejmuje wszystkich elementów wpływających na odpowiedź. Pomija między innymi nazwę modelu, wersję instrukcji, nazwę projektu i klienta oraz oznaczenie zastępczego zestawu stawek. Zmiana tych danych nie musi unieważnić ostatniego wyniku.
-
-Dla pełniejszej odtwarzalności należałoby rozszerzyć identyfikację wejścia o wersję konfiguracji analizy i przechowywać dokładny kontekst użyty do konkretnego wywołania.
+Skrót nie obejmuje jednak wszystkich elementów wpływających na odpowiedź: pomija nazwę modelu, wersję instrukcji, nazwę projektu i klienta oraz oznaczenie zastępczego zestawu stawek, przez co zmiana tych danych nie unieważnia ostatniego wyniku. Dla pełniejszej odtwarzalności należałoby rozszerzyć identyfikację wejścia o wersję konfiguracji analizy i przechowywać dokładny kontekst użyty do konkretnego wywołania.
 
 \subsection{Rekomendacje redukcji kosztów}
 

@@ -240,19 +240,15 @@ W analizie projektowej szczególnego znaczenia nabiera czas. Data faktycznego za
 
 \subsection*{Prospektywne gromadzenie danych uczących}
 
-Rozróżnienie to prowadzi do istotnego wniosku projektowego. System zarządzania zadaniami przechowuje zwykle wyłącznie stan bieżący: aktualny status, aktualny termin i aktualnego wykonawcę. Historia zmian tych wartości, jeżeli nie jest zapisywana jawnie, nie może zostać odtworzona po fakcie. Nie da się zatem ustalić wstecz, ilu niezakończonych poprzedników miało zadanie trzy tygodnie wcześniej ani jak obciążony był wówczas jego wykonawca.
+Rozróżnienie to prowadzi do istotnego wniosku projektowego. System zarządzania zadaniami przechowuje zwykle wyłącznie stan bieżący, a historia zmian statusu, terminu czy wykonawcy, jeżeli nie jest zapisywana jawnie, nie może zostać odtworzona po fakcie. Zbioru uczącego dla predykcji opóźnień nie da się więc zbudować retrospektywnie: może on być wyłącznie akumulowany prospektywnie, od momentu uruchomienia rejestrowania, ponieważ wektor cech niezapisany w danym dniu jest trwale utracony. Decyzja o gromadzeniu danych musi zatem poprzedzać wybór modelu, a nie po nim następować.
 
-Zbioru uczącego dla predykcji opóźnień nie można w konsekwencji zbudować retrospektywnie. Może on być wyłącznie akumulowany prospektywnie, czyli od momentu uruchomienia rejestrowania. Wektor cech niezapisany w danym dniu jest trwale utracony. Decyzja o gromadzeniu danych musi więc poprzedzać decyzję o wyborze modelu, a nie następować po niej.
-
-Prowadzi to również do wymagania wobec samego procesu zapisu. Cechy powinny być rejestrowane w postaci surowej, to znaczy bez wcześniejszego ważenia, progowania ani agregowania przez metodę bazową. Zapisanie ocen wyznaczonych przez istniejącą heurystykę zamiast wielkości źródłowych oznaczałoby przeniesienie jej założeń do danych, na których ma być uczony jej następca. Model odtwarzałby wtedy opinie heurystyki, a nie zależności obecne w projekcie.
+Wynika stąd również wymaganie wobec samego zapisu. Cechy powinny być rejestrowane w postaci surowej, bez ważenia, progowania ani agregowania przez metodę bazową. Zapisanie ocen wyznaczonych przez istniejącą heurystykę zamiast wielkości źródłowych przeniosłoby jej założenia do danych, na których ma być uczony jej następca, a model odtwarzałby wówczas opinie heurystyki zamiast zależności obecnych w projekcie.
 
 \subsection*{Obserwacje cenzurowane i podział zbioru}
 
-Etykietowanie obserwacji w projekcie w toku napotyka dodatkową trudność. W chwili oceny część zadań jest już zakończona, część pozostaje otwarta przed terminem, a część jest otwarta po terminie. Tylko pierwsza grupa pozwala wyznaczyć dokładną wartość opóźnienia.
+Etykietowanie obserwacji w projekcie w toku napotyka dodatkową trudność, ponieważ w chwili oceny tylko część zadań jest zakończona. Zadanie otwarte i przeterminowane dostarcza informacji niepełnej: wiadomo, że opóźnienie wystąpiło, lecz znana jest jedynie jego dolna granica. Jest to obserwacja cenzurowana prawostronnie, a potraktowanie takiej wartości jako dokładnej prowadziłoby do systematycznego zaniżania prognozowanego opóźnienia, gdyż zadania najdłużej opóźnione byłyby zapisywane z wartościami zmierzonymi przed faktycznym zakończeniem. Zadanie otwarte przed terminem nie niesie natomiast żadnej informacji o wyniku i powinno pozostać nieetykietowane.
 
-Zadanie otwarte i przeterminowane dostarcza informacji niepełnej: wiadomo, że opóźnienie wystąpiło, lecz znana jest jedynie jego dolna granica. Jest to obserwacja cenzurowana prawostronnie. Potraktowanie takiej wartości jako dokładnej prowadziłoby do systematycznego zaniżania prognozowanego opóźnienia, ponieważ zadania najdłużej opóźnione byłyby zapisywane z wartościami zmierzonymi przed ich faktycznym zakończeniem. Zadanie otwarte przed terminem nie dostarcza natomiast żadnej informacji o wyniku i powinno pozostać nieetykietowane do czasu rozstrzygnięcia.
-
-Osobnym zagadnieniem jest struktura zależności między obserwacjami. Jeżeli prognoza jest sporządzana wielokrotnie dla tego samego zadania, powstaje kilka przykładów uczących dzielących ostatecznie jedną etykietę wyniku. Obserwacje te nie są niezależne. Losowy podział na zbiór uczący i testowy umieściłby różne migawki tego samego zadania po obu stronach, co prowadziłoby do zawyżonej oceny jakości. Podział powinien zatem grupować obserwacje według zadania, a dodatkowo uwzględniać porządek czasowy, aby model nie był oceniany na zdarzeniach wcześniejszych niż te, na których był uczony.
+Osobnym zagadnieniem jest zależność między obserwacjami. Prognoza sporządzana wielokrotnie dla tego samego zadania daje kilka przykładów dzielących ostatecznie jedną etykietę, które nie są wzajemnie niezależne. Podział losowy umieściłby różne migawki tego samego zadania po obu stronach, zawyżając ocenę jakości, wobec czego powinien on grupować obserwacje według zadania i dodatkowo uwzględniać porządek czasowy.
 
 Dla klasyfikacji opóźnień można wykorzystać precyzję i czułość:
 \begin{equation}
@@ -275,28 +271,26 @@ gdzie \(y_i\) oznacza wartość rzeczywistą, \(\hat{y}_i\) --- wartość przewi
 
 \subsection*{Jakość uporządkowania a kalibracja}
 
-Dla klasyfikatora zwracającego wartość ciągłą należy odróżnić dwie różne własności, które bywają mylone. Pierwszą jest zdolność uporządkowania obserwacji, czyli to, czy przypadki zakończone zdarzeniem otrzymują wyższe oceny niż pozostałe. Drugą jest kalibracja, czyli zgodność zwracanych wartości z rzeczywistą częstością zdarzeń.
+Dla klasyfikatora zwracającego wartość ciągłą należy odróżnić dwie bywające mylonymi własności: zdolność uporządkowania obserwacji, czyli to, czy przypadki zakończone zdarzeniem otrzymują wyższe oceny niż pozostałe, oraz kalibrację, czyli zgodność zwracanych wartości z rzeczywistą częstością zdarzeń.
 
-Miarą uporządkowania jest pole pod krzywą charakterystyki operacyjnej odbiornika, oznaczane jako ROC AUC. Odpowiada ono prawdopodobieństwu, że losowo wybrana obserwacja pozytywna otrzyma wyższą ocenę niż losowo wybrana obserwacja negatywna. Wartość 0,5 oznacza brak zdolności różnicującej, a 1,0 uporządkowanie bezbłędne. Miara ta jest niewrażliwa na monotoniczne przekształcenie wyniku, wobec czego opisuje wyłącznie kolejność, a nie poprawność samych wartości.
+Miarą uporządkowania jest pole pod krzywą charakterystyki operacyjnej odbiornika, oznaczane jako ROC AUC i odpowiadające prawdopodobieństwu, że losowo wybrana obserwacja pozytywna otrzyma wyższą ocenę niż losowo wybrana negatywna. Wartość 0,5 oznacza brak zdolności różnicującej, a 1,0 uporządkowanie bezbłędne. Miara ta jest niewrażliwa na monotoniczne przekształcenie wyniku, opisuje więc wyłącznie kolejność, a nie poprawność samych wartości.
 
-Kalibrację można ocenić miarą Briera, czyli średnim kwadratem różnicy między prognozowanym prawdopodobieństwem a wynikiem rzeczywistym:
+Kalibrację ocenia się miarą Briera, czyli średnim kwadratem różnicy między prognozowanym prawdopodobieństwem a wynikiem rzeczywistym:
 
 \begin{equation}
     BS = \frac{1}{n}\sum_{i=1}^{n}\left(\hat{p}_i - y_i\right)^2,
     \label{eq:brier}
 \end{equation}
 
-gdzie \(\hat{p}_i\) oznacza prognozowane prawdopodobieństwo, a \(y_i \in \{0,1\}\) wynik obserwowany. Właściwym punktem odniesienia jest tu model stały, zwracający zawsze udział klasy pozytywnej. Model o dobrym uporządkowaniu może wypaść gorzej od takiego odniesienia pod względem miary Briera, co oznacza, że jego wskazania są użyteczne jako ranking, lecz nie powinny być prezentowane jako wartości procentowe.
+gdzie \(\hat{p}_i\) oznacza prognozowane prawdopodobieństwo, a \(y_i \in \{0,1\}\) wynik obserwowany. Punktem odniesienia jest model stały, zwracający zawsze udział klasy pozytywnej. Model o dobrym uporządkowaniu może wypaść gorzej od takiego odniesienia, co oznacza, że jego wskazania są użyteczne jako ranking, lecz nie powinny być prezentowane jako wartości procentowe. Rozbieżność tę usuwa osobny krok kalibracji: metoda Platta dopasowuje funkcję logistyczną do wartości funkcji decyzyjnej, natomiast kalibracja izotoniczna dowolną funkcję niemalejącą, bardziej elastyczną, lecz przy mniejszych zbiorach łatwiej ulegającą przeuczeniu.
 
-Rozbieżność tę usuwa się osobnym krokiem kalibracji, wykonywanym po dopasowaniu modelu. Metoda Platta polega na dopasowaniu funkcji logistycznej do wartości funkcji decyzyjnej modelu, natomiast kalibracja izotoniczna dopasowuje dowolną funkcję niemalejącą. Druga z nich jest bardziej elastyczna, lecz przy mniejszych zbiorach łatwiej ulega przeuczeniu.
-
-Osobnym zagadnieniem jest postać cech. Zależność monotoniczna, lecz silnie nieliniowa, bywa dla modelu liniowego nieosiągalna w wartościach surowych, a staje się dostępna po przekształceniu. Dla wielkości zliczających o rozkładach skośnych typowym zabiegiem jest przekształcenie \(\log(1+x)\), zachowujące porządek i określone dla wartości zerowej. Dobór postaci cech może wpływać na wynik silniej niż wybór rodziny modelu, co należy sprawdzać pomiarem, a nie zakładać.
+Znaczenie ma również postać cech. Zależność monotoniczna, lecz silnie nieliniowa, bywa dla modelu liniowego nieosiągalna w wartościach surowych, a staje się dostępna po przekształceniu; dla wielkości zliczających o rozkładach skośnych typowym zabiegiem jest \(\log(1+x)\), zachowujące porządek i określone dla zera. Dobór postaci cech może wpływać na wynik silniej niż wybór rodziny modelu, co należy sprawdzać pomiarem, a nie zakładać.
 
 \subsection*{Przenoszalność modelu między organizacjami}
 
-Gdy model ma działać na projektach innych niż te, na których go uczono, ocena musi tę sytuację odwzorować. Właściwym postępowaniem jest podział danych grupowany według projektu, w którym wszystkie obserwacje danego przedsięwzięcia trafiają w całości do jednej strony podziału. Podział ignorujący tę strukturę pozwala modelowi zapamiętać charakterystyczny dla projektu udział zdarzeń i prowadzi do oceny zawyżonej.
+Gdy model ma działać na projektach innych niż te, na których go uczono, ocena musi tę sytuację odwzorować. Właściwy jest podział grupowany według projektu, w którym wszystkie obserwacje danego przedsięwzięcia trafiają do jednej strony podziału; podział ignorujący tę strukturę pozwala modelowi zapamiętać charakterystyczny dla projektu udział zdarzeń i zawyża ocenę. Z tego samego powodu identyfikator projektu nie powinien pełnić funkcji cechy.
 
-Z tego samego powodu identyfikator projektu nie powinien pełnić funkcji cechy. Przenoszalności sprzyjają natomiast cechy strukturalne, opisujące wielkości policzalne i porównywalne między organizacjami, takie jak liczba zależności czy rozmiar zadania. Cechy oparte na słownictwie, na przykład nazwy poziomów priorytetu, bywają w różnych organizacjach definiowane odmiennie, przez co model napotyka w nowym projekcie kategorie nieobecne podczas uczenia.
+Przenoszalności sprzyjają cechy strukturalne, opisujące wielkości policzalne i porównywalne między organizacjami, takie jak liczba zależności czy rozmiar zadania. Cechy oparte na słownictwie, na przykład nazwy poziomów priorytetu, bywają natomiast definiowane odmiennie, przez co model napotyka w nowym projekcie kategorie nieobecne podczas uczenia.
 
 Ocena powinna obejmować porównanie z prostą metodą bazową. Złożoność modelu nie stanowi samodzielnego uzasadnienia jego zastosowania. W PlanWise takim punktem odniesienia jest istniejąca punktowa ocena ryzyka.
 

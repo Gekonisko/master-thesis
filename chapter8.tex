@@ -41,29 +41,21 @@ Istotnym elementem interfejsu jest rozdzielenie propozycji od jej zastosowania. 
 
 Zastosowanie jawnych funkcji heurystycznych umożliwia prześledzenie sposobu wyznaczania ocen. Ma to znaczenie podczas weryfikacji obliczeń i projektowania eksperymentów. Ujawnia także zależność wyniku od przyjętych wag, progów i wartości zastępczych.
 
-Odrębnym rezultatem jest ujednolicenie sposobu, w jaki system traktuje metody wyznaczania wyników. Wszystkie cztery mechanizmy analityczne umieszczono za granicami programistycznymi o tym samym kształcie, a za każdą z nich zarejestrowano co najmniej dwie implementacje. Wraz z każdym uruchomieniem zapisywana jest nazwa metody, która je wykonała, oraz przyjęte przez nią założenia.
+Odrębnym rezultatem jest ujednolicenie sposobu, w jaki system traktuje metody wyznaczania wyników. Wszystkie cztery mechanizmy analityczne umieszczono za granicami programistycznymi o tym samym kształcie, rejestrując za każdą co najmniej dwie implementacje, a wraz z każdym uruchomieniem zapisywana jest nazwa metody, która je wykonała, oraz przyjęte przez nią założenia. Konstrukcja ta umożliwia porównywanie metod zamiast zakładania przewagi którejkolwiek z nich, a w harmonogramowaniu pozwala potraktować niepowodzenie solvera jako przewidziany przypadek dający wynik gorszy, lecz jawnie oznaczony, a nie błąd analizy.
 
-Konstrukcja ta nie jest wyłącznie zabiegiem porządkującym kod. Umożliwia porównywanie metod zamiast zakładania przewagi którejkolwiek z nich, a w przypadku harmonogramowania pozwala obsłużyć niepowodzenie solvera jako przewidziany przypadek, którego skutkiem jest wynik gorszy, lecz jawnie oznaczony, a nie błąd analizy.
+Uruchomiono również rejestrowanie danych uczących — element nieodwracalny w czasie, ponieważ stanu projektu z danego dnia nie da się odtworzyć później, więc rozpoczęcie zapisu jest warunkiem, a nie następstwem dalszych prac nad predykcją opartą na danych własnych.
 
-Dodatkowym rezultatem jest uruchomienie rejestrowania danych uczących. Element ten ma charakter nieodwracalny w czasie: stan projektu z danego dnia nie może zostać odtworzony później, więc rozpoczęcie zapisu jest warunkiem, a nie następstwem dalszych prac nad predykcją opartą na danych własnych.
-
-W obszarze modelowania rezultatem jest wytrenowany i wdrożony model predykcji opóźnienia zadania wraz z udokumentowaną procedurą jego przygotowania, obejmującą dobór zbioru danych, definicję etykiety, usunięcie wykrytych źródeł przecieku informacji, wybór postaci cech oraz kalibrację. Wynik pomiaru przedstawiono bez upiększeń: przewaga nad metodą odniesienia jest rzeczywista, lecz umiarkowana, co bezpośrednio uzasadniło pozostawienie heurystyki jako metody domyślnej.
+W obszarze modelowania rezultatem jest wytrenowany i wdrożony model predykcji opóźnienia zadania wraz z udokumentowaną procedurą przygotowania, obejmującą dobór zbioru danych, definicję etykiety, usunięcie wykrytych źródeł przecieku informacji, wybór postaci cech oraz kalibrację. Wynik pomiaru przedstawiono bez upiększeń: przewaga nad metodą odniesienia jest rzeczywista, lecz umiarkowana, co bezpośrednio uzasadniło pozostawienie heurystyki jako metody domyślnej.
 
 Powyższe rezultaty dotyczą opracowanych mechanizmów i ich organizacji. Nie stanowią jeszcze potwierdzenia zmniejszenia opóźnień, kosztów lub czasu pracy kierownika projektu.
 
 \section{Wkład własny}
 
-Wkład własny obejmuje zaprojektowanie i połączenie funkcji zarządzania projektami z mechanizmami analitycznymi w ramach jednej aplikacji. Dotyczy zarówno modelu danych i granic modułów, jak i realizacji przypadków użycia oraz sposobu prezentacji rekomendacji.
+Wkład własny obejmuje zaprojektowanie i połączenie funkcji zarządzania projektami z mechanizmami analitycznymi w ramach jednej aplikacji: model danych, granice modułów, realizację przypadków użycia oraz sposób prezentacji rekomendacji. Po stronie serwerowej dotyczy obsługi projektów, zespołów i zadań, integracji modułów przez wspólne kontrakty oraz przebiegu analiz asynchronicznych, a po stronie klienckiej widoków organizacji pracy i obsługi wyników analiz w kontekście projektu. W obszarze analitycznym obejmuje konfigurację czynników ryzyka, funkcję priorytetyzacji, heurystykę wyboru wykonawców oraz kontekst estymacji kosztów oparty na backlogu i zagregowanych stawkach zespołu.
 
-W części serwerowej wkład obejmuje implementację obsługi projektów, zespołów i zadań, integrację modułów przez wspólne kontrakty oraz przygotowanie przebiegu analiz asynchronicznych. W części klienckiej obejmuje widoki organizacji pracy i obsługę wyników analiz w kontekście wybranego projektu.
+W zakresie prac nad modelami wkład obejmuje zaprojektowanie jednolitej granicy oddzielającej sposób wyznaczania wyniku od pozostałych odpowiedzialności modułu i zastosowanie jej we wszystkich czterech mechanizmach, sformułowanie zdarzenia docelowego wraz ze sposobem etykietowania, dobór rejestrowanych cech oraz mechanizm gromadzenia obserwacji z obsługą przypadków cenzurowanych.
 
-W obszarze analitycznym opracowano konfigurację czynników ryzyka, funkcję priorytetyzacji i heurystykę wyboru wykonawców. Przygotowano również kontekst estymacji kosztów oparty na danych backlogu i zagregowanych stawkach zespołu oraz integrację odpowiedzi modelu z aplikacją.
-
-W zakresie prac nad modelami wkład obejmuje zaprojektowanie jednolitej granicy oddzielającej sposób wyznaczania wyniku od pozostałych odpowiedzialności modułu i zastosowanie jej we wszystkich czterech mechanizmach, sformułowanie zdarzenia docelowego i sposobu jego etykietowania, dobór rejestrowanych cech oraz opracowanie mechanizmu gromadzenia i etykietowania obserwacji wraz z obsługą przypadków cenzurowanych.
-
-Wkład w części dotyczącej modelu uczonego obejmuje ponadto dobór zbioru danych wraz z rozpoznaniem przyczyn nieprzydatności zbioru odrzuconego, przedefiniowanie zobowiązania terminowego na datę zakończenia sprintu, wykrycie i usunięcie dwóch źródeł przecieku informacji, zaprojektowanie dwóch protokołów oceny, przeprowadzenie porównania rodzin modeli i postaci cech, ograniczenie zestawu cech do wielkości możliwych do obliczenia podczas eksploatacji oraz kalibrację wyniku. Osobnym elementem jest zabezpieczenie zgodności dwóch implementacji tych samych obliczeń zestawem przypadków wzorcowych.
-
-W obszarze harmonogramowania wkład dotyczy sformułowania przydziału zadań jako problemu harmonogramowania z ograniczonymi zasobami, doboru ograniczeń i postaci funkcji celu oraz zaprojektowania sposobu obsługi przypadków, w których solver nie zwraca rozwiązania.
+W części dotyczącej modelu uczonego dochodzi do tego dobór zbioru danych wraz z rozpoznaniem przyczyn nieprzydatności zbioru odrzuconego, przedefiniowanie zobowiązania terminowego na datę zakończenia sprintu, wykrycie i usunięcie dwóch źródeł przecieku informacji, zaprojektowanie dwóch protokołów oceny, porównanie rodzin modeli i postaci cech, ograniczenie zestawu cech do wielkości obliczalnych podczas eksploatacji, kalibracja wyniku oraz zabezpieczenie zgodności dwóch implementacji tych samych obliczeń zestawem przypadków wzorcowych. W obszarze harmonogramowania wkład dotyczy sformułowania przydziału zadań jako problemu harmonogramowania z ograniczonymi zasobami, doboru ograniczeń i funkcji celu oraz obsługi przypadków, w których solver nie zwraca rozwiązania.
 
 W odniesieniu do modeli językowych wkład dotyczy sformułowania zadania, ograniczenia odpowiedzi do ról i stawek pochodzących z danych projektu, wymuszenia ustrukturyzowanej postaci wyniku, rozróżnienia niepowodzeń wymagających ponowienia od tych, dla których jest ono bezcelowe, oraz rozpoznania, że priorytetyzacja backlogu jest problemem pozbawionym etykiety, a przez to właściwym raczej dla modelu językowego niż dla modelu uczonego.
 
@@ -98,15 +90,11 @@ Mechanizm gromadzenia danych własnych został zaimplementowany i działa przy k
 
 Ograniczony jest również zakres tego, co model przewiduje. Wyznacza on wyłącznie prawdopodobieństwo opóźnienia zadania, natomiast wielkość opóźnienia oraz prognoza wykonania sprintu pozostają wynikiem przeliczeń heurystycznych, ponieważ wykorzystany zbiór nie zawiera odpowiednich etykiet.
 
-Drugim ograniczeniem jest sposób reprezentowania czasu i zasobów. Punkty, godziny, dni kalendarzowe i udział etatu opisują różne wielkości, a ich powiązanie wymaga jawnego przelicznika. Zagadnienie to rozwiązano dla prognozowania sprintu, wprowadzając wyznaczanie tempa z zakończonych sprintów projektu wraz z jawnym rozróżnieniem tempa zmierzonego od założonego. Nie rozwiązano go natomiast dla czasu trwania zadania, gdzie utrzymano uproszczenie jednego punktu jako jednego dnia pracy przy pełnej dostępności.
+Drugim ograniczeniem jest sposób reprezentowania czasu i zasobów. Punkty, godziny, dni kalendarzowe i udział etatu opisują różne wielkości, a ich powiązanie wymaga jawnego przelicznika. Zagadnienie to rozwiązano dla prognozowania sprintu, wyznaczając tempo z zakończonych sprintów projektu i odróżniając tempo zmierzone od założonego; nie rozwiązano go natomiast dla czasu trwania zadania, gdzie utrzymano uproszczenie jednego punktu jako jednego dnia pracy przy pełnej dostępności. Nierozwiązany pozostaje również brak kontroli acykliczności grafu zależności: przygotowanie danych wykresu mimo cyklu nie jest równoznaczne z wyznaczeniem wykonalnego harmonogramu.
 
-Analiza zależności wymaga również pełnej kontroli acykliczności. Przygotowanie danych wykresu mimo występowania cyklu nie jest równoznaczne z wyznaczeniem wykonalnego harmonogramu.
+Przydział zadań uwzględnia kolejność zależności, rozłączność prac jednej osoby i skalowanie czasu trwania dostępnością, nie modeluje natomiast kalendarzy nieobecności ani zmienności dostępności w czasie. Dopasowanie kompetencji pozostaje porównaniem tekstowym z tytułem zadania, przez co pełni w funkcji celu wyłącznie rolę rozstrzygania remisów, a optymalność jest gwarantowana jedynie względem zadeklarowanej funkcji celu i tylko wtedy, gdy solver zdąży jej dowieść w wyznaczonym czasie.
 
-Przydział zadań uwzględnia obecnie kolejność zależności, rozłączność prac jednej osoby i skalowanie czasu trwania dostępnością, nie modeluje natomiast kalendarzy nieobecności ani zmienności dostępności w czasie. Dopasowanie kompetencji pozostaje porównaniem tekstowym z tytułem zadania i nie uwzględnia poziomu umiejętności, przez co pełni w funkcji celu wyłącznie rolę rozstrzygania remisów. Optymalność jest gwarantowana jedynie względem zadeklarowanej funkcji celu i tylko wtedy, gdy solver zdąży jej dowieść w wyznaczonym czasie.
-
-Estymacja kosztów jest ograniczona zakresem przekazywanego kontekstu i brakiem danych o rzeczywistym nakładzie pozostałym do wykonania. Poprawność struktury odpowiedzi modelu nie gwarantuje poprawności sum, kompletności scenariuszy ani trafności uzasadnienia.
-
-Dodatkowe ograniczenia dotyczą aktualności rekomendacji i niezawodności ich stosowania. Dane mogą zmienić się między wygenerowaniem propozycji a jej zatwierdzeniem. Operacje obejmujące kilka modułów nie są automatycznie jedną transakcją, a obsługa wielu instancji procesorów wymaga dodatkowych mechanizmów współbieżności.
+Estymacja kosztów jest ograniczona zakresem przekazywanego kontekstu i brakiem danych o rzeczywistym nakładzie pozostałym do wykonania; poprawność struktury odpowiedzi nie gwarantuje poprawności sum, kompletności scenariuszy ani trafności uzasadnienia. Dodatkowe ograniczenia dotyczą aktualności rekomendacji i niezawodności ich stosowania: dane mogą zmienić się między wygenerowaniem propozycji a jej zatwierdzeniem, operacje obejmujące kilka modułów nie stanowią jednej transakcji, a obsługa wielu instancji procesorów wymaga dodatkowych mechanizmów współbieżności.
 
 Ograniczenia te wyznaczają zakres zastosowania obecnej wersji. System należy traktować jako rozwiązanie rozwojowe, którego rekomendacje wymagają oceny użytkownika i dalszej walidacji.
 
@@ -132,38 +120,24 @@ Kalibrację zastosowano dla modelu uczonego, natomiast nie objęto nią heurysty
 
 \subsection{Rozbudowa harmonogramowania i przydziałów}
 
-Zadanie optymalizacyjne z ograniczeniami zasobowymi i czasowymi zostało sformułowane i wdrożone, a heurystyka zachłanna pozostała szybką metodą bazową i rozwiązaniem zastępczym. Dalszy rozwój dotyczy zatem przede wszystkim wierności modelu wobec rzeczywistości.
+Zadanie optymalizacyjne z ograniczeniami zasobowymi i czasowymi zostało sformułowane i wdrożone, a heurystyka zachłanna pozostała szybką metodą bazową i rozwiązaniem zastępczym. Dalszy rozwój dotyczy zatem wierności modelu wobec rzeczywistości.
 
-Pierwszym kierunkiem jest strukturalny opis wymagań kompetencyjnych zadań, pozwalający zastąpić dopasowanie fragmentów tytułu jawnymi warunkami wyboru wykonawcy. Obecna postać tego składnika jest na tyle zawodna, że w funkcji celu przypisano mu wyłącznie rolę rozstrzygania remisów; wprowadzenie opisu strukturalnego pozwoliłoby podnieść jego znaczenie.
+Pierwszym kierunkiem jest strukturalny opis wymagań kompetencyjnych zadań, pozwalający zastąpić dopasowanie fragmentów tytułu jawnymi warunkami wyboru wykonawcy; obecna postać tego składnika jest na tyle zawodna, że pełni w funkcji celu wyłącznie rolę rozstrzygania remisów. Drugim jest wprowadzenie kalendarzy członków zespołu obejmujących nieobecności i zmienną dostępność, ponieważ traktowanie każdego dnia jako roboczego prowadzi przy dłuższym horyzoncie do terminów zbyt optymistycznych. Trzecim jest zmierzenie praktycznej granicy stosowalności solvera, to znaczy ustalenie, przy jakiej wielkości projektu rośnie udział uruchomień kończących się metodą zastępczą, i rozważenie zwiększenia budżetu czasu, dekompozycji zadania lub rozwiązania przyrostowego.
 
-Drugim jest wprowadzenie kalendarzy członków zespołu, obejmujących nieobecności i zmienną dostępność w czasie. Obecnie każdy dzień traktowany jest jako roboczy, a dostępność jako wielkość stała, co przy dłuższym horyzoncie planowania prowadzi do terminów zbyt optymistycznych.
-
-Trzecim jest zmierzenie praktycznej granicy stosowalności solvera. Należy ustalić, przy jakiej wielkości projektu rośnie udział uruchomień kończących się wynikiem metody zastępczej, a następnie rozważyć zwiększenie budżetu czasu, dekompozycję zadania lub rozwiązanie przyrostowe.
-
-Rozważenia wymaga również sposób łączenia składników funkcji celu. Obecne wagi stałe dopuszczają teoretycznie wymianę dnia długości projektu na dostatecznie dużą oszczędność na przekroczeniach terminów; rozwiązanie leksykograficzne usunęłoby tę możliwość kosztem większej złożoności obliczeń.
+Rozważenia wymaga również sposób łączenia składników funkcji celu: obecne wagi stałe dopuszczają teoretycznie wymianę dnia długości projektu na dostatecznie dużą oszczędność na przekroczeniach terminów, czemu zapobiegłoby rozwiązanie leksykograficzne, kosztem większej złożoności obliczeń.
 
 \subsection{Zwiększenie wiarygodności estymacji kosztów}
 
-Model językowy powinien koncentrować się na interpretacji wymagań, proponowaniu założeń i oszacowaniu nakładu. Obliczenia rachunkowe oraz kontrola zgodności stawek powinny być realizowane deterministycznie po stronie aplikacji.
+Model językowy powinien koncentrować się na interpretacji wymagań, proponowaniu założeń i oszacowaniu nakładu, natomiast obliczenia rachunkowe oraz kontrola zgodności stawek powinny być realizowane deterministycznie po stronie aplikacji. Kontrakt wyniku warto rozszerzyć o jednoznaczne powiązanie pozycji kosztowych ze scenariuszem oraz sprawdzać zależności między rekomendacjami redukcji, aby uniknąć wielokrotnego uwzględniania tej samej oszczędności.
 
-Kontrakt wyniku warto rozszerzyć o jednoznaczne powiązanie pozycji kosztowych ze scenariuszem. Należy też sprawdzać zależności między rekomendacjami redukcji, aby uniknąć wielokrotnego uwzględniania tej samej oszczędności.
-
-Dalszy rozwój obejmuje rejestrowanie dokładnego kontekstu wywołania, wersji instrukcji i konfiguracji modelu. Dane te powinny również wpływać na decyzję o ponownym wykorzystaniu wcześniejszego wyniku.
-
-Po zgromadzeniu rzeczywistych kosztów możliwe będzie porównywanie estymacji z wykonaniem i identyfikowanie obszarów systematycznego niedoszacowania.
+Dalszy rozwój obejmuje rejestrowanie dokładnego kontekstu wywołania, wersji instrukcji i konfiguracji modelu, które powinny wpływać również na decyzję o ponownym wykorzystaniu wcześniejszego wyniku. Po zgromadzeniu rzeczywistych kosztów możliwe będzie porównywanie estymacji z wykonaniem i identyfikowanie obszarów systematycznego niedoszacowania.
 
 \subsection{Niezawodność i kontrola zmian}
 
-Przed zastosowaniem propozycji należy ponownie sprawdzać jej aktualność. Można wykorzystać wersjonowanie danych lub zapis identyfikatora stanu, dla którego wykonano analizę.
-
-Obsługa przydziałów powinna jednoznacznie raportować częściowe niepowodzenia. Procesory zadań i wiadomości wymagają natomiast zasad przejmowania pracy, ponowień i odporności na powtórne wykonanie.
-
-Rozwój kontroli dostępu powinien obejmować jawne uprawnienia do poszczególnych działań oraz ich weryfikację w API i komunikacji czasu rzeczywistego.
+Przed zastosowaniem propozycji należy ponownie sprawdzać jej aktualność, wykorzystując wersjonowanie danych lub zapis identyfikatora stanu, dla którego wykonano analizę. Obsługa przydziałów powinna jednoznacznie raportować częściowe niepowodzenia, procesory zadań i wiadomości wymagają zasad przejmowania pracy, ponowień i odporności na powtórne wykonanie, a kontrola dostępu — jawnych uprawnień do poszczególnych działań weryfikowanych w API i komunikacji czasu rzeczywistego.
 
 \subsection{Badania z udziałem użytkowników}
 
-Po usunięciu podstawowych ograniczeń wskazane jest przeprowadzenie badań z udziałem osób zarządzających projektami. Uczestnicy mogliby wykonywać te same zadania decyzyjne z dostępem do rekomendacji i bez nich.
+Po usunięciu podstawowych ograniczeń wskazane jest przeprowadzenie badań z udziałem osób zarządzających projektami, wykonujących te same zadania decyzyjne z dostępem do rekomendacji i bez nich. Ocena powinna obejmować czas analizy, liczbę przeoczonych problemów, poprawność decyzji i zrozumienie uzasadnień, a także sprawdzenie, czy sposób prezentacji nie prowadzi do nadmiernego zaufania do wyników.
 
-Ocena powinna obejmować czas analizy, liczbę przeoczonych problemów, poprawność decyzji i zrozumienie uzasadnień. Należy również sprawdzić, czy sposób prezentacji nie prowadzi do nadmiernego zaufania do wyników.
-
-Takie badanie pozwoli uzupełnić pomiary techniczne o ocenę rzeczywistej użyteczności. Dopiero połączenie tych perspektyw umożliwi określenie, w jakich warunkach PlanWise wspiera kierownika projektu i które mechanizmy wymagają dalszych zmian.
+Dopiero połączenie pomiarów technicznych z oceną rzeczywistej użyteczności umożliwi określenie, w jakich warunkach PlanWise wspiera kierownika projektu i które mechanizmy wymagają dalszych zmian.

@@ -7,47 +7,27 @@ W niniejszym rozdziale przedstawiono implementację funkcji użytkowych, ze szcz
 
 \section{Obsługa kont użytkowników i sesji}
 
-Dostęp do części projektowej aplikacji wymaga uwierzytelnienia. Interfejs udostępnia widoki rejestracji, logowania, zgłoszenia potrzeby zresetowania hasła oraz ustawienia nowego hasła. Komunikację z odpowiednimi punktami końcowymi realizuje usługa \texttt{AuthService}.
+Dostęp do części projektowej aplikacji wymaga uwierzytelnienia. Interfejs udostępnia widoki rejestracji, logowania i resetowania hasła, a stan sesji przechowuje magazyn \texttt{AuthStore}, z którego token dostępu jest dołączany do kolejnych żądań. Przy ponownym uruchomieniu aplikacji podejmowana jest próba odtworzenia sesji przez operację odświeżenia; jej niepowodzenie powoduje wyczyszczenie stanu lokalnego.
 
-Podczas rejestracji użytkownik przekazuje adres e-mail, imię, nazwisko i hasło. Procedura \texttt{RegisterUserCommandHandler} sprawdza występowanie konta o podanym adresie, przygotowuje encję użytkownika i inicjuje utworzenie sesji. Przed zapisaniem danych adres jest pozbawiany skrajnych białych znaków i zamieniany na małe litery. Hasło jest przetwarzane przez komponent odpowiedzialny za wyznaczanie jego skrótu.
+Dwie decyzje implementacyjne mają znaczenie wykraczające poza sam przebieg logowania. Adres e-mail jest przed zapisem normalizowany przez usunięcie skrajnych białych znaków i zamianę na małe litery, co czyni regułę unikalności konta jednoznaczną. Wylogowanie obejmuje natomiast zarówno unieważnienie sesji po stronie serwera, jak i usunięcie danych z pamięci klienta, ponieważ samo ukrycie widoków projektowych nie unieważnia tokenu odświeżania.
 
-Wynik poprawnego uwierzytelnienia zawiera dane użytkownika i token dostępu. Frontend przekazuje je do \texttt{AuthStore}, który przechowuje bieżący stan sesji. Informacje te pozwalają określić, czy użytkownik jest zalogowany, i dołączać token do kolejnych żądań.
-
-Przy ponownym uruchomieniu aplikacji w przeglądarce wykonywana jest próba odtworzenia sesji. Metoda \texttt{tryRestoreSession} wywołuje operację odświeżania. Jeżeli operacja zakończy się niepowodzeniem, lokalny stan uwierzytelnienia zostaje wyczyszczony.
-
-Wylogowanie obejmuje żądanie unieważnienia sesji po stronie serwera oraz usunięcie danych sesji z pamięci klienta. Rozdzielenie tych czynności jest istotne, ponieważ samo ukrycie widoków projektowych nie unieważnia tokenu odświeżania.
-
-Mechanizmy te stanowią wspólny punkt wejścia do funkcji projektowych. Kontrola dostępu do konkretnego projektu jest wykonywana dodatkowo podczas obsługi operacji dotyczących jego danych.
+Uwierzytelnienie stanowi wspólny punkt wejścia do funkcji projektowych, lecz nie zastępuje kontroli dostępu do konkretnego projektu, wykonywanej osobno przy obsłudze operacji na jego danych.
 
 \section{Tworzenie i zarządzanie projektami}
 
-Projekt stanowi nadrzędny kontekst organizacji pracy. Zawiera nazwę, prefiks kluczy zadań, oznaczenie procesu, opcjonalną nazwę klienta, status oraz identyfikator właściciela.
+Projekt stanowi nadrzędny kontekst organizacji pracy. Zawiera nazwę, prefiks kluczy zadań, oznaczenie procesu, opcjonalną nazwę klienta, status oraz identyfikator właściciela. Podczas tworzenia sprawdzana jest dostępność prefiksu, wykorzystywanego następnie do budowania czytelnych oznaczeń zadań, a właściciel jest automatycznie dodawany do listy członków.
 
-Tworzenie projektu realizuje procedura \texttt{CreateProjectCommandHandler}. Identyfikator właściciela jest pobierany z kontekstu uwierzytelnionego użytkownika. Następnie sprawdzana jest dostępność wskazanego prefiksu, wykorzystywanego później do budowania czytelnych oznaczeń zadań.
+Wartości początkowe nadawane właścicielowi, obejmujące pojemność równą jeden i stawkę godzinową równą zeru, wymagają dostosowania, jeżeli dane zespołu mają być wykorzystywane w analizach kosztowych. Model projektu przewiduje ponadto stany \texttt{Active}, \texttt{OnHold}, \texttt{Completed} i \texttt{Archived}, przy czym archiwizacja zmienia wyłącznie status i nie blokuje samoistnie operacji na zadaniach.
 
-Po utworzeniu projektu właściciel jest automatycznie dodawany do listy członków. W analizowanej implementacji otrzymuje początkową wartość pola roli \texttt{Owner}, pojemność równą jeden i stawkę godzinową równą zero. Parametry te są wartościami początkowymi i wymagają dostosowania, jeżeli dane zespołu mają być wykorzystywane w analizach kosztowych.
-
-Model projektu przewiduje stany \texttt{Active}, \texttt{OnHold}, \texttt{Completed} i \texttt{Archived}. Archiwizacja zmienia status projektu, pozostawiając jego dane w modelu. Sama zmiana statusu nie powinna być utożsamiana z automatycznym zablokowaniem wszystkich operacji na zadaniach; takie zachowanie zależy od kontroli wykonywanych przez poszczególne przypadki użycia.
-
-Po wyborze projektu użytkownik przechodzi do wspólnego układu aplikacji. Jego identyfikator znajduje się w adresie i określa zakres danych pobieranych przez widoki backlogu, tablicy, zespołu i analiz.
-
-Takie rozwiązanie pozwala zachować jednoznaczny kontekst podczas nawigowania pomiędzy funkcjami. Zmiana widoku nie wymaga ponownego wybierania projektu.
+Identyfikator wybranego projektu znajduje się w adresie i określa zakres danych pobieranych przez widoki backlogu, tablicy, zespołu i analiz. Pozwala to zachować jednoznaczny kontekst podczas nawigowania pomiędzy funkcjami, bez ponownego wybierania przedsięwzięcia.
 
 \section{Zarządzanie zespołem i parametrami jego członków}
 
-Członkostwo w projekcie reprezentuje encja \texttt{ProjectMember}. Zawiera ona identyfikator projektu, opcjonalny identyfikator konta, adres e-mail, rolę, pojemność, stawkę godzinową oraz listę kompetencji.
+Członkostwo reprezentuje encja \texttt{ProjectMember}, zawierająca identyfikator projektu, opcjonalny identyfikator konta, adres e-mail, rolę, pojemność, stawkę godzinową oraz listę kompetencji. Opcjonalność identyfikatora konta pozwala zapisać członka zespołu na podstawie samego adresu, zanim zostanie on powiązany z użytkownikiem systemu; nie oznacza to jednak wysłania zaproszenia, ponieważ dodanie wpisu i dostarczenie wiadomości są odrębnymi operacjami.
 
-Opcjonalność identyfikatora konta pozwala zapisać członka zespołu na podstawie adresu e-mail, zanim zostanie on powiązany z użytkownikiem systemu. Nie oznacza to samoistnie wysłania wiadomości z zaproszeniem. Dodanie wpisu członkostwa i dostarczenie wiadomości e-mail są odrębnymi operacjami.
+Model ten wprowadza dwa ograniczenia istotne dla późniejszych analiz. Wpis członkostwa posiada pojedyncze pole roli, wobec czego nie odwzorowuje osoby pełniącej w projekcie kilka ról zawodowych; rozbudowa wymagałaby określenia, jak przypisywać wówczas stawki i dostępność. Pojemność wyraża natomiast udział dostępności, a nie liczbę punktów zadaniowych, przez co widok zespołu musi odróżniać wielkość przypisanych prac od deklarowanego zaangażowania.
 
-Podczas dodawania członka adres jest normalizowany, a procedura obsługi sprawdza, czy w projekcie nie istnieje już wpis dotyczący wskazanego użytkownika lub adresu. Po poprawnej weryfikacji nowy element zostaje zapisany.
-
-Użytkownik może aktualizować rolę, pojemność i stawkę godzinową oraz określać kompetencje. Lista kompetencji jest przechowywana jako zbiór nazw tekstowych. Przy jej aktualizacji usuwane są powtórzenia z pominięciem wielkości liter.
-
-W obecnym modelu pojedynczy wpis członkostwa posiada jedno pole roli. Nie zaimplementowano w nim odrębnej kolekcji wielu ról zawodowych przypisanych do tej samej osoby. Rozbudowa takiego modelu wymagałaby również określenia sposobu przypisywania stawek i dostępności do poszczególnych ról.
-
-Pojemność jest prezentowana w interfejsie jako udział dostępności, na przykład procent pełnego zaangażowania. Nie jest bezpośrednio liczbą punktów zadaniowych. Z tego powodu widok zespołu powinien rozróżniać wielkość przypisanych prac od deklarowanej dostępności.
-
-Stawki godzinowe i role stanowią dane wejściowe estymacji kosztów. Kompetencje i pojemność są natomiast wykorzystywane podczas przygotowywania propozycji przydziałów. Poprawność tych parametrów wpływa zatem na użyteczność późniejszych rekomendacji.
+Parametry te są wykorzystywane poza modułem: stawki i role zasilają estymację kosztów, a kompetencje i pojemność wpływają na propozycje przydziałów. Ich kompletność przekłada się zatem bezpośrednio na użyteczność rekomendacji.
 
 \section{Tworzenie i edycja zadań}
 
@@ -73,45 +53,25 @@ Po stronie klienta szczegóły zadania są prezentowane w panelu otwieranym z ta
 
 \section{Podzadania, etykiety i zależności}
 
-Zadanie może zawierać podzadania, które umożliwiają podział pracy na mniejsze czynności. Podzadanie posiada własny tytuł i znacznik wykonania. Interfejs serwerowy obsługuje dodawanie, aktualizowanie i usuwanie takich elementów.
+Zadanie może zawierać podzadania, posiadające własny tytuł i znacznik wykonania, oraz etykiety pozwalające klasyfikować pracę niezależnie od statusu i priorytetu. Podzadania nie zastępują pełnych zadań projektowych: stanowią element zadania nadrzędnego, a ich wykonanie opisuje postęp jego wewnętrznych czynności.
 
-Podzadania nie zastępują pełnych zadań projektowych. W analizowanym modelu stanowią element zadania nadrzędnego, a ich wykonanie jest informacją o postępie jego wewnętrznych czynności.
+Zależności reprezentują obiekty \texttt{TaskLink}, zawierające identyfikator drugiego zadania oraz typ relacji. Podczas dodawania sprawdzane jest istnienie obu zadań i ich przynależność do tego samego projektu. Dane te zasilają harmonogramowanie, ocenę blokad i priorytetyzację, przy czym nie każde powiązanie informacyjne powinno być traktowane jako warunek rozpoczęcia pracy.
 
-Etykiety pozwalają klasyfikować zadania niezależnie od statusu i priorytetu. Przy aktualizacji zestawu etykiet usuwane są powtarzające się identyfikatory. Powiązania etykiet z zadaniem są następnie zapisywane jako elementy jego kolekcji.
-
-Zależności są reprezentowane przez obiekty \texttt{TaskLink}. Powiązanie zawiera identyfikator drugiego zadania oraz typ relacji. Podczas dodawania sprawdzane jest istnienie obu zadań i ich przynależność do tego samego projektu.
-
-Dane o zależnościach są wykorzystywane w harmonogramowaniu, ocenie blokad i priorytetyzacji. Aby mogły służyć do obliczeń, relacje muszą być interpretowane zgodnie z ich kierunkiem i znaczeniem. Nie każde powiązanie informacyjne powinno być traktowane jako warunek rozpoczęcia pracy.
-
-W analizowanej implementacji sprawdzenie przynależności do projektu nie jest uzupełnione pełną kontrolą acykliczności grafu zależności. Wymaganie wykrywania cykli pozostaje zatem obszarem wymagającym rozbudowy. Ma ono znaczenie dla poprawności obliczeń harmonogramu przedstawionych w kolejnym rozdziale.
+Sprawdzenie przynależności do projektu nie jest jednak uzupełnione kontrolą acykliczności grafu. Wykrywanie cykli pozostaje obszarem wymagającym rozbudowy i ma bezpośrednie znaczenie dla poprawności obliczeń harmonogramu omówionych w kolejnym rozdziale.
 
 \section{Organizacja backlogu i cyklu życia sprintu}
 
-Backlog gromadzi prace oczekujące na realizację. Użytkownik może przeglądać zadania, uzupełniać ich parametry, zmieniać kolejność i przypisywać wybrane elementy do sprintów.
+Sprint zawiera nazwę, opcjonalny cel, daty graniczne i stan, przechodząc kolejno przez wartości \texttt{Planned}, \texttt{Active} i \texttt{Completed}. Dozwolone przejścia kontrolują metody domenowe, a próba wykonania operacji w niewłaściwym stanie zwraca błąd. Procedura rozpoczynania sprintu sprawdza dodatkowo, czy w projekcie nie istnieje już sprint aktywny; reguła ta jest realizowana na poziomie przypadku użycia, wobec czego jej odporność na żądania równoczesne wymaga osobnej oceny.
 
-Sprint zawiera nazwę, opcjonalny cel, datę rozpoczęcia, datę zakończenia i stan. Po utworzeniu znajduje się w stanie \texttt{Planned}. Rozpoczęcie zmienia go na \texttt{Active}, a zakończenie na \texttt{Completed}.
+Powiązanie przynależności do sprintu ze statusem zadania zaprojektowano asymetrycznie. Zadanie przypisane do sprintu z backlogu otrzymuje stan \texttt{Todo}, natomiast usunięcie przypisania przywraca stan \texttt{Backlog} wyłącznie wtedy, gdy zadanie pozostawało w stanie \texttt{Todo}. Prace rozpoczęte i zakończone zachowują swój stan, dzięki czemu zmiana organizacji pracy nie powoduje utraty informacji o postępie.
 
-Metody domenowe kontrolują dozwolone przejścia. Rozpocząć można sprint planowany, natomiast zakończyć sprint aktywny. Próba wykonania operacji w niewłaściwym stanie zwraca błąd.
-
-Procedura rozpoczynania sprintu sprawdza dodatkowo, czy projekt posiada już sprint aktywny. Kontrola ta realizuje regułę pojedynczego aktywnego sprintu na poziomie przypadku użycia. Jej odporność na równoczesne żądania wymaga osobnej oceny współbieżności.
-
-Przypisanie zadania do sprintu jest powiązane z jego statusem. Jeżeli zadanie znajdowało się w backlogu, po przypisaniu otrzymuje stan \texttt{Todo}. Dzięki temu staje się widoczne w kolumnie prac oczekujących na rozpoczęcie.
-
-Usunięcie przypisania do sprintu powoduje powrót do stanu \texttt{Backlog} tylko wtedy, gdy zadanie pozostawało w stanie \texttt{Todo}. Zadania rozpoczęte i zakończone zachowują swój stan. Reguła ta zapobiega utracie informacji o postępie przy zmianie organizacji pracy.
-
-Zakończenie sprintu aktualizuje jego stan i udostępnia podsumowanie przypisanych zadań. W obecnej procedurze nie występuje automatyczne przenoszenie niezakończonych elementów do kolejnego sprintu. Dalsze zaplanowanie tych prac wymaga osobnej zmiany ich przypisania.
+Zakończenie sprintu aktualizuje jego stan i udostępnia podsumowanie przypisanych zadań, lecz nie przenosi automatycznie elementów niezakończonych do kolejnej iteracji. Dalsze ich zaplanowanie wymaga osobnej zmiany przypisania.
 
 \section{Implementacja tablicy Kanban}
 
-Tablica przedstawia zadania w trzech kolumnach odpowiadających stanom \texttt{Todo}, \texttt{InProgress} i \texttt{Done}. Dane są pobierane przez zapytanie \texttt{GetBoardQuery}, które sprawdza dostęp do projektu, odczytuje zadania w poszczególnych stanach i przygotowuje odpowiedź.
+Tablica przedstawia zadania w trzech kolumnach odpowiadających stanom \texttt{Todo}, \texttt{InProgress} i \texttt{Done}. Backend zwraca zawartość obejmującą cały projekt, a frontend zawęża prezentację do wybranego sprintu, wszystkich sprintów albo zadań nieprzypisanych, przyjmując domyślnie sprint aktywny. Interfejs obsługuje ponadto grupowanie według statusu, umożliwiające zmianę stanu przez przeciąganie kart, oraz według wykonawcy, służące do przeglądania rozdziału pracy.
 
-Backend zwraca tablicę obejmującą projekt. Frontend umożliwia zawężenie prezentacji do wybranego sprintu, wszystkich sprintów albo zadań bez przypisania do sprintu. Domyślny filtr odwołuje się do sprintu aktywnego, jeżeli taki istnieje.
-
-Interfejs obsługuje grupowanie według statusu lub wykonawcy. Widok według statusu umożliwia zmianę stanu przez przeciąganie kart, natomiast grupowanie według wykonawcy służy do przeglądania rozdziału pracy.
-
-Obsługę przeciągania zaimplementowano z wykorzystaniem Angular CDK. Po upuszczeniu karty klient aktualizuje lokalny widok i wysyła żądanie zawierające docelowy status oraz indeks. W przypadku błędu ponownie pobiera dane z serwera.
-
-Jest to aktualizacja optymistyczna: interfejs przedstawia zmianę przed otrzymaniem potwierdzenia zapisu. Poprawia ona bezpośredniość reakcji aplikacji, ale wymaga przywrócenia zgodności z serwerem, jeżeli operacja nie zostanie wykonana.
+Przeciąganie zaimplementowano jako aktualizację optymistyczną: klient aktualizuje widok lokalny, wysyła żądanie z docelowym statusem i indeksem, a w razie błędu pobiera dane ponownie. Rozwiązanie to poprawia bezpośredniość reakcji aplikacji, lecz wymaga przywrócenia zgodności z serwerem, gdy operacja się nie powiedzie.
 
 Po stronie backendu pozycja jest zapisywana w polu \texttt{Rank}. Przy umieszczeniu zadania pomiędzy dwoma elementami wyznaczana jest średnia ich wartości:
 
@@ -129,19 +89,11 @@ Kontrakt tablicy przewiduje miejsce na limit WIP, lecz backend zwraca obecnie wa
 
 \section{Harmonogram, wykres Gantta i kamienie milowe}
 
-Widok harmonogramu przedstawia zadania na osi czasu. Dane wiersza obejmują identyfikator i nazwę zadania, daty rozpoczęcia i zakończenia, zapas czasu, oznaczenie krytyczności oraz identyfikatory poprzedników.
+Widok harmonogramu przedstawia zadania na osi czasu. Dane wiersza obejmują identyfikator i nazwę zadania, daty graniczne, zapas czasu, oznaczenie krytyczności oraz identyfikatory poprzedników.
 
-Frontend wykorzystuje komponent \texttt{GanttChart}. Zmiana położenia zadania jest przekazywana do magazynu stanu harmonogramu, który inicjuje komunikację z API.
+Ręcznie wskazane terminy przechowywane są w module \texttt{Scheduling} jako odrębne elementy harmonogramu, co oddziela ustawienia planu od danych opisujących samo zadanie i pozwala uwzględniać je przy kolejnych obliczeniach jako nadpisania. Przed zapisaniem zmiany system przelicza bieżący harmonogram i sprawdza, czy proponowane rozpoczęcie nie narusza zależności od poprzedników; wykryte naruszenie kończy operację błędem. Udostępniono również walidację całego zestawu proponowanych przesunięć, przy czym kontrola ta obejmuje wyłącznie zależności, nie zaś kalendarze pracowników ani konflikty zasobowe.
 
-Ręcznie wskazane terminy są przechowywane w module \texttt{Scheduling} jako elementy harmonogramu. Pozwala to oddzielić ustawienia planu od danych opisujących samo zadanie. Przy ponownym obliczeniu harmonogramu zapisane terminy są uwzględniane jako nadpisania.
-
-Przed zapisaniem zmiany procedura \texttt{UpdateScheduleItemCommandHandler} pobiera dane zadania, weryfikuje dostęp i oblicza bieżący harmonogram. Następnie sprawdza, czy proponowane rozpoczęcie nie narusza zależności od poprzedników.
-
-Jeżeli wykryte zostanie naruszenie, operacja zwraca błąd. W przeciwnym razie tworzony lub aktualizowany jest element harmonogramu, a odpowiedź zawiera ponownie obliczone dane wiersza.
-
-Udostępniono również operację walidacji zestawu proponowanych przesunięć. Łączy ona propozycje z istniejącymi terminami i zwraca wykryte naruszenia dla wskazanych zmian. Zakres tej kontroli dotyczy zależności sprawdzanych przez implementację; nie oznacza pełnej weryfikacji kalendarzy pracowników i wszystkich konfliktów zasobowych.
-
-Kamień milowy reprezentuje nazwany punkt kontrolny projektu z określonym terminem. Model zawiera identyfikator projektu, nazwę i datę. Nie posiada parametrów pracochłonności ani wykonawcy, dlatego służy do oznaczania istotnych terminów, a nie do reprezentowania kolejnego zadania roboczego.
+Kamień milowy reprezentuje nazwany punkt kontrolny z określonym terminem. Nie posiada parametrów pracochłonności ani wykonawcy, służy zatem do oznaczania istotnych dat, a nie do reprezentowania kolejnego zadania roboczego.
 
 Sposób wyznaczania terminów, zapasu czasu i krytyczności oraz ograniczenia przyjętego modelu omówiono w rozdziale dotyczącym mechanizmów wspomagania decyzji.
 
@@ -178,67 +130,31 @@ Zestawienie to podlega temu samemu ograniczeniu co wykres spalania. Obie wielko�
 
 \section{Komentarze, aktywność i powiadomienia}
 
-Komentarze umożliwiają prowadzenie dyskusji w kontekście zadania. Każdy wpis zawiera treść, identyfikator autora i czas utworzenia. Autor jest ustalany na podstawie sesji użytkownika.
+Komentarze umożliwiają prowadzenie dyskusji w kontekście zadania; autor wpisu jest ustalany na podstawie sesji, a dodanie komentarza zgłasza zdarzenie domenowe. Rejestr aktywności przedstawia wybrane zmiany zachodzące w projekcie, pozwalając rozpoznać ostatnie działania bez otwierania kolejno wszystkich zadań. Nie należy go jednak utożsamiać z dziennikiem audytowym: pełny audyt wymagałby określenia zakresu rejestrowanych operacji, trwałości wpisów i informacji pozwalających odtworzyć zmiany wartości.
 
-Dodanie komentarza jest obsługiwane jako osobna operacja. Po sprawdzeniu dostępu tworzony jest element przypisany do zadania, a model zgłasza zdarzenie domenowe opisujące tę czynność.
+Powiadomienia stanowią odrębne dane powiązane z odbiorcą, zawierające typ, komunikat, opcjonalne odniesienie do projektu i odnośnik do miejsca w aplikacji. Użytkownik może je pobierać i oznaczać jako przeczytane.
 
-Rejestr aktywności przedstawia wybrane zmiany zachodzące w projekcie. Użytkownik może dzięki temu rozpoznać ostatnie działania bez otwierania kolejno wszystkich zadań. API umożliwia pobieranie wpisów z określonym limitem i przesunięciem.
-
-Rejestr aktywności służy do prezentacji przebiegu pracy, ale nie powinien być automatycznie traktowany jako kompletny dziennik audytowy. Pełny audyt wymagałby określenia zakresu rejestrowanych operacji, trwałości wpisów i informacji pozwalających odtworzyć zmiany wartości.
-
-Powiadomienia stanowią osobne dane powiązane z odbiorcą. Zawierają typ, komunikat, opcjonalne odniesienie do projektu i odnośnik do odpowiedniego miejsca w aplikacji. Ich zapis realizuje implementacja kontraktu \texttt{INotificationPublisher}.
-
-Moduł powiadomień zapisuje dane we własnym kontekście bazodanowym. Oznacza to, że jego zapis nie jest automatycznie częścią transakcji operacji z innego modułu. Ma to znaczenie przy analizie sytuacji, w której podstawowa zmiana i utworzenie powiadomienia zakończą się różnymi rezultatami.
-
-Użytkownik może pobierać powiadomienia i oznaczać je jako przeczytane. Pozwala to oddzielić nowe informacje od tych, z którymi już się zapoznał.
+Istotne jest, że moduł powiadomień zapisuje dane we własnym kontekście bazodanowym, wobec czego ich utworzenie nie należy do transakcji operacji z innego modułu. Podstawowa zmiana i powiązane z nią powiadomienie mogą zatem zakończyć się różnymi rezultatami.
 
 \section{Aktualizacja widoków z wykorzystaniem SignalR}
 
-Praca kilku osób nad projektem wymaga przekazywania informacji o zmianach pomiędzy otwartymi instancjami aplikacji. W PlanWise wykorzystano do tego SignalR i grupowanie połączeń według projektu.
+Praca kilku osób nad projektem wymaga przekazywania informacji o zmianach pomiędzy otwartymi instancjami aplikacji. Wykorzystano do tego SignalR z grupowaniem połączeń według projektu, przy czym backend dodaje połączenie do grupy dopiero po zweryfikowaniu dostępu użytkownika do danego przedsięwzięcia.
 
-Po nawiązaniu połączenia backend weryfikuje użytkownika i jego dostęp do projektu. Dopiero po poprawnym sprawdzeniu dodaje połączenie do właściwej grupy.
+Przyjęty przebieg synchronizacji jest celowo pośredni: po zapisaniu zmiany serwer rozsyła powiadomienie, a zainteresowane klienty pobierają aktualny stan z API. SignalR pełni więc wyłącznie funkcję sygnału do odświeżenia danych, natomiast źródłem ich aktualnej postaci pozostaje API. Subskrypcje są usuwane przy niszczeniu widoku, co ogranicza wielokrotne obsługiwanie tych samych komunikatów.
 
-Po stronie Angulara obsługę komunikacji realizuje \texttt{ProjectHubService}. Widoki subskrybują potrzebne zdarzenia, a następnie aktualizują dane. Przykładowo magazyn tablicy reaguje na komunikaty o przeniesieniu i aktualizacji zadania przez ponowne pobranie zawartości tablicy.
-
-Przebieg synchronizacji obejmuje:
-
-\begin{enumerate}
-    \item wykonanie operacji przez użytkownika;
-    \item zapis zmiany po stronie serwera;
-    \item przekazanie informacji o zmianie;
-    \item odebranie komunikatu przez zainteresowane klienty;
-    \item pobranie aktualnego stanu z API.
-\end{enumerate}
-
-SignalR pełni tu funkcję sygnału do odświeżenia danych. Źródłem ich aktualnej postaci pozostaje API.
-
-Przy niszczeniu widoku tablicy usuwane są jego subskrypcje. Ogranicza to ryzyko wielokrotnego obsługiwania tych samych komunikatów po przechodzeniu pomiędzy widokami.
-
-Mechanizm aktualizacji nie rozstrzyga samodzielnie konfliktów równoczesnej edycji. Odebranie informacji o zmianie i ochrona przed nadpisaniem cudzych danych są odrębnymi zagadnieniami, które wymagają osobnej weryfikacji.
+Mechanizm ten nie rozstrzyga samodzielnie konfliktów równoczesnej edycji. Odebranie informacji o zmianie i ochrona przed nadpisaniem cudzych danych są odrębnymi zagadnieniami, wymagającymi osobnej weryfikacji.
 
 \section{Integracja widoków z operacjami analitycznymi}
 
-Funkcje organizacyjne są połączone z analizami przez wspólny kontekst projektu. Użytkownik może przejść od backlogu lub harmonogramu do widoków ryzyka, priorytetów i kosztów bez ponownego wprowadzania danych zadań.
+Funkcje organizacyjne są połączone z analizami przez wspólny kontekst projektu, dzięki czemu przejście od backlogu lub harmonogramu do widoków ryzyka, priorytetów i kosztów nie wymaga ponownego wprowadzania danych. Operacje wykonywane w tle obsługiwane są przez identyfikator zlecenia: klient inicjuje analizę, śledzi jej stan i pobiera wynik po zakończeniu, o którym może zostać dodatkowo powiadomiony przez SignalR.
 
-Operacje wykonywane w tle są obsługiwane z wykorzystaniem identyfikatora zlecenia. Klient inicjuje analizę, śledzi jej stan, a po zakończeniu pobiera wynik. Informacja o zakończeniu może również zostać przekazana przez SignalR.
+Kluczowe dla interpretacji wyników jest rozdzielenie prezentacji propozycji od jej zastosowania. Widok harmonogramu udostępnia panel propozycji przydziałów oraz panel wyjaśnienia zawierający cel obliczeń, założenia, nazwę mechanizmu i czas wygenerowania, a zatwierdzenie uruchamia odrębną operację zmieniającą dane. Opis oczekiwanej korzyści pozostaje przy tym elementem uzasadnienia rekomendacji, a nie dowodem poprawy uzyskanym w eksperymencie.
 
-W interfejsie rozróżniono prezentację propozycji od jej zastosowania. Widok harmonogramu udostępnia panel propozycji przydziałów oraz panel wyjaśnienia zawierający cel obliczeń, założenia, nazwę mechanizmu i czas wygenerowania.
-
-Dzięki temu użytkownik może zapoznać się z rekomendacją w kontekście istniejącego planu. Zatwierdzenie uruchamia odrębną operację zmieniającą dane.
-
-To rozdzielenie ma znaczenie również dla interpretacji informacji prezentowanych przez system. Opis oczekiwanej korzyści jest elementem uzasadnienia rekomendacji, a nie dowodem poprawy uzyskanym w eksperymencie.
-
-Błąd analizy powinien być prezentowany jako niepowodzenie konkretnej operacji. Nie zmienia on sam przez się danych backlogu ani wyniku wcześniej zakończonej estymacji. Zakres rzeczywistych zmian zależy od wykonanych operacji zapisu i sposobu obsługi ich niepowodzeń.
+Błąd analizy jest prezentowany jako niepowodzenie konkretnej operacji i nie zmienia sam przez się danych backlogu ani wyniku wcześniej zakończonej estymacji.
 
 \section{Konfiguracja i przygotowanie środowiska}
 
-Uruchomienie funkcji projektowych wymaga skonfigurowania połączenia z PostgreSQL, parametrów uwierzytelniania oraz adresu API wykorzystywanego przez frontend. Integracja kosztowa wymaga dodatkowo konfiguracji usługi modelu językowego.
-
-Konfiguracja serwera rejestruje moduły, ich konteksty danych, procedury obsługi żądań i usługi działające w tle. Dzięki temu przypadki użycia mogą korzystać ze wspólnych kontraktów bez samodzielnego tworzenia zależności.
-
-W środowisku deweloperskim aplikacja uruchamia migracje i udostępnia dokumentację OpenAPI. Repozytorium zawiera również konfigurację Docker Compose wspierającą przygotowanie środowiska. Obecność tych plików opisuje sposób organizacji uruchomienia, lecz nie stanowi potwierdzenia poprawnego wdrożenia w każdym środowisku.
-
-Po stronie klienta adres API jest przekazywany przez wspólny mechanizm konfiguracji. Usługi funkcjonalne korzystają z niego do budowania żądań, co ogranicza powielanie adresów w komponentach.
+Uruchomienie wymaga skonfigurowania połączenia z PostgreSQL, parametrów uwierzytelniania oraz adresu API wykorzystywanego przez frontend; mechanizmy korzystające z modelu językowego wymagają dodatkowo konfiguracji usługi zewnętrznej. W środowisku deweloperskim aplikacja uruchamia migracje i udostępnia dokumentację OpenAPI, a repozytorium zawiera konfigurację Docker Compose wspierającą przygotowanie środowiska.
 
 Przy przygotowywaniu danych do oceny systemu należy uzupełnić nie tylko zadania i sprinty, lecz także wartości biznesowe, zależności, kompetencje, pojemności i stawki. Brak tych informacji ogranicza możliwości analiz, nawet gdy podstawowe operacje tworzenia i edycji działają poprawnie.
 

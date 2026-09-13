@@ -75,60 +75,21 @@ W repozytorium znajdują się testy architektoniczne sprawdzające zależności 
 
 \section{Architektura warstwowa i elementy Domain-Driven Design}
 
-Każdy moduł podzielono na cztery projekty odpowiadające warstwom \texttt{Domain}, \texttt{Application}, \texttt{Infrastructure} i \texttt{Presentation}. Podział ten oddziela reguły dotyczące projektu i zadań od sposobu komunikacji z użytkownikiem oraz technicznych szczegółów przechowywania danych.
+Każdy moduł podzielono na cztery projekty odpowiadające warstwom \texttt{Domain}, \texttt{Application}, \texttt{Infrastructure} i \texttt{Presentation}, zgodnie z powszechnie stosowanym podziałem oddzielającym reguły dziedzinowe od szczegółów technicznych. Zamiast omawiać sam wzorzec, wskazano poniżej rozstrzygnięcia specyficzne dla PlanWise.
 
-\subsection{Warstwa domenowa}
+Warstwa \texttt{Domain} zawiera encje, zdarzenia domenowe, definicje błędów i interfejsy repozytoriów, na przykład \texttt{ProjectTask} i \texttt{Sprint} w module \texttt{Delivery}. Zastosowane elementy Domain-Driven Design ograniczają się do modelowania pojęć biznesowych encjami, grupowania odpowiedzialności w modułach i reprezentowania istotnych zmian zdarzeniami domenowymi; nie jest to deklaracja pełnego zastosowania tej metodyki.
 
-Warstwa \texttt{Domain} zawiera encje, zdarzenia domenowe, definicje błędów oraz wybrane interfejsy repozytoriów. Reprezentuje pojęcia występujące w danym obszarze funkcjonalnym.
+Warstwa \texttt{Application} realizuje przypadki użycia i zawiera komendy, zapytania, ich procedury obsługi, walidatory oraz kontrakty usług zewnętrznych. Umieszczono w niej również algorytmy analityczne, dzięki czemu obliczenie oceny ryzyka lub rankingu daje się rozpatrywać niezależnie od sposobu prezentacji wyniku.
 
-Przykładowo w module \texttt{Delivery} znajdują się obiekty \texttt{ProjectTask} i \texttt{Sprint}, a także podzadania, komentarze i powiązania pomiędzy zadaniami. W module zarządzania przestrzenią projektową występują projekt i członkowie zespołu.
+Warstwa \texttt{Infrastructure} zawiera dostęp do danych, konfigurację Entity Framework Core, migracje, integracje zewnętrzne oraz rejestrację usług modułu. Podział ten jest nośnikiem opisanej dalej wymienności modeli: interfejs \texttt{ICostEstimationModel} należy do warstwy aplikacyjnej, a jego implementacja \texttt{AnthropicCostEstimationModel} do infrastruktury, wobec czego zmiana dostawcy nie dotyka przypadku użycia.
 
-Zastosowane elementy Domain-Driven Design obejmują modelowanie pojęć biznesowych za pomocą encji, grupowanie odpowiedzialności w modułach oraz reprezentowanie istotnych zmian przez zdarzenia domenowe. Określenie to odnosi się do wybranych praktyk projektowych, a nie do deklaracji pełnego zastosowania wszystkich technik DDD.
-
-\subsection{Warstwa aplikacyjna}
-
-Warstwa \texttt{Application} realizuje przypadki użycia. Zawiera komendy, zapytania, procedury ich obsługi, walidatory oraz kontrakty usług zewnętrznych i infrastrukturalnych.
-
-Jej zadaniem jest koordynowanie operacji. Przykładowa procedura aktualizacji zadania odczytuje dane, sprawdza warunki wykonania, wywołuje odpowiednią zmianę i zleca zapis. Warstwa ta określa przebieg przypadku użycia, pozostawiając szczegóły komunikacji z bazą danych implementacjom infrastrukturalnym.
-
-W tej części znajdują się także algorytmy analityczne. Dzięki temu obliczenie oceny ryzyka lub rankingu może być rozpatrywane niezależnie od sposobu prezentacji wyniku w interfejsie.
-
-\subsection{Warstwa infrastruktury}
-
-Warstwa \texttt{Infrastructure} zawiera implementacje dostępu do danych, konfigurację Entity Framework Core, migracje oraz integracje z usługami zewnętrznymi. Odpowiada również za rejestrację usług danego modułu.
-
-Przykładem rozdzielenia odpowiedzialności jest interfejs \texttt{ICostEstimationModel}, zdefiniowany w warstwie aplikacyjnej, i jego implementacja \texttt{AnthropicCostEstimationModel}, umieszczona w infrastrukturze. Logika przypadku użycia operuje na typowanym kontekście estymacji i wyniku, podczas gdy implementacja infrastrukturalna przygotowuje żądanie HTTP i interpretuje odpowiedź dostawcy.
-
-\subsection{Warstwa prezentacji}
-
-Warstwa \texttt{Presentation} udostępnia punkty końcowe API. Przyjmuje dane żądania, tworzy komendę lub zapytanie i przekształca rezultat w odpowiedź HTTP.
-
-W tym znaczeniu prezentacja oznacza zewnętrzny interfejs modułu serwerowego. Graficzny interfejs użytkownika znajduje się w odrębnej aplikacji Angular.
-
-Podział warstw ogranicza zakres odpowiedzialności punktów końcowych. Obliczenia analityczne i reguły modyfikowania danych pozostają poza kodem definiującym adresy API.
+Warstwa \texttt{Presentation} udostępnia punkty końcowe API; oznacza więc zewnętrzny interfejs modułu serwerowego, a nie graficzny interfejs użytkownika, który stanowi odrębną aplikację Angular.
 
 \section{Obsługa operacji z wykorzystaniem CQRS}
 
-W PlanWise zastosowano rozdzielenie operacji zmieniających dane od operacji odczytu. Komendy opisują zamiar wykonania zmiany, natomiast zapytania służą do pobierania informacji potrzebnych odbiorcy.
+Operacje zmieniające dane oddzielono od operacji odczytu. Obie grupy korzystają jednak ze wspólnej bazy danych, ponieważ wzorzec CQRS tego nie wyklucza, a utrzymywanie osobnych magazynów odczytu i zapisu nie byłoby w tej skali uzasadnione.\footnote{Microsoft, \textit{Command Query Responsibility Segregation (CQRS) pattern}, \url{https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs}, dostęp: 10.09.2026.}
 
-Wzorzec CQRS dopuszcza wykorzystanie wspólnej bazy danych przez obie grupy operacji. Rozdzielenie odpowiedzialności nie wymaga zatem utrzymywania osobnych magazynów odczytu i zapisu.\footnote{Microsoft, \textit{Command Query Responsibility Segregation (CQRS) pattern}, \url{https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs}, dostęp: 10.09.2026.}
-
-W implementacji komendy obejmują między innymi utworzenie zadania, zmianę jego statusu, aktualizację wartości biznesowej i zmianę kolejności backlogu. Zapytania umożliwiają pobranie listy zadań, zawartości tablicy lub szczegółów wybranego elementu.
-
-Żądania są przekazywane przez MediatR do odpowiednich procedur obsługi. W konfiguracji zarejestrowano również wspólny potok obejmujący obsługę wyjątków, rejestrowanie żądań i walidację. Pozwala to umieścić powtarzalne czynności poza kodem poszczególnych przypadków użycia.
-
-Typowy przebieg operacji zapisu obejmuje:
-
-\begin{enumerate}
-    \item odebranie żądania przez punkt końcowy;
-    \item utworzenie komendy na podstawie danych wejściowych;
-    \item wykonanie wspólnych elementów potoku;
-    \item sprawdzenie warunków przypadku użycia;
-    \item zmianę danych i zapis;
-    \item przekształcenie wyniku w odpowiedź HTTP.
-\end{enumerate}
-
-Wyniki operacji są reprezentowane między innymi przez typy \texttt{Result} i \texttt{Result<T>}. Rozróżniają one poprawne wykonanie od błędu opisanego kodem, kategorią i komunikatem. Ułatwia to wspólne mapowanie błędów aplikacyjnych na odpowiedzi API.
+Żądania trafiają przez MediatR do odpowiednich procedur obsługi, a wspólny potok realizuje obsługę wyjątków, rejestrowanie żądań i walidację, dzięki czemu czynności powtarzalne pozostają poza kodem poszczególnych przypadków użycia. Wyniki reprezentują typy \texttt{Result} i \texttt{Result<T>}, rozróżniające poprawne wykonanie od błędu opisanego kodem, kategorią i komunikatem, co pozwala mapować błędy aplikacyjne na odpowiedzi API w jednym miejscu.
 
 Przyjęte rozwiązanie jest implementacją rozdzielenia komend i zapytań na poziomie organizacji kodu oraz kontraktów. Nie opiera się na odtwarzaniu całego stanu aplikacji ze strumienia zdarzeń.
 
@@ -306,58 +267,27 @@ Odrębną kategorię stanowi tabela \texttt{risk\_prediction.task\_feature\_snap
 
 \section{Komunikacja między modułami i kontrakty wspólne}
 
-Komunikację między modułami oparto na interfejsach umieszczonych w części wspólnej. Implementację kontraktu dostarcza moduł odpowiedzialny za dane, natomiast odbiorca korzysta z abstrakcji.
+Komunikację między modułami oparto na interfejsach umieszczonych w części wspólnej: implementację kontraktu dostarcza moduł odpowiedzialny za dane, a odbiorca korzysta wyłącznie z abstrakcji. Interfejs \texttt{IProjectTasksService} udostępnia dane zadań w postaci struktur dostosowanych do harmonogramowania, estymacji i analiz oraz operacje stosujące wybrane zmiany, \texttt{IProjectMembersService} przekazuje informacje o zespole, \texttt{IProjectAccessService} umożliwia sprawdzenie dostępu, a \texttt{IRiskInsightsService} i \texttt{ISprintInsightsService} udostępniają wyniki analiz.
 
-Przykładowo interfejs \texttt{IProjectTasksService} udostępnia dane zadań w postaci struktur dostosowanych do harmonogramowania, estymacji kosztów i analiz. Zawiera również operacje umożliwiające zastosowanie wybranych zmian, takich jak przypisanie wykonawcy lub uporządkowanie backlogu.
+Zastosowano struktury transferowe zawierające wyłącznie dane wymagane przez odbiorców. Moduł harmonogramowania nie potrzebuje pełnego modelu zadania wraz z komentarzami, lecz jego identyfikatora, rozmiaru, wykonawcy, terminu i poprzedników. Ogranicza to przenoszenie szczegółów domeny poza jej moduł, przy czym kontrakty te należy rozwijać ostrożnie: umieszczanie w nich nadmiernie szczegółowych struktur odtworzyłoby silne zależności mimo formalnego rozdzielenia projektów.
 
-Interfejs \texttt{IProjectMembersService} przekazuje informacje o zespole, a \texttt{IProjectAccessService} umożliwia sprawdzenie dostępu do projektu. Wyniki analiz są udostępniane między innymi przez kontrakty \texttt{IRiskInsightsService} i \texttt{ISprintInsightsService}.
-
-Zastosowano struktury transferowe zawierające wyłącznie dane wymagane przez odbiorców. Ogranicza to przenoszenie szczegółów domeny poza jej moduł i pozwala utrzymywać stabilny interfejs współpracy.
-
-Przykładem jest przygotowanie propozycji przydziału:
-
-\begin{enumerate}
-    \item moduł harmonogramowania pobiera zadania przez kontrakt wspólny;
-    \item uzyskuje parametry członków zespołu;
-    \item wykonuje obliczenia i zapisuje propozycję;
-    \item po zatwierdzeniu przekazuje zmiany do modułu zarządzającego zadaniami.
-\end{enumerate}
-
-Wywołania te odbywają się wewnątrz jednego procesu. Nie wymagają połączeń HTTP pomiędzy modułami. Rozwiązanie upraszcza komunikację, lecz operacje obejmujące kilka kontekstów bazodanowych nadal wymagają świadomego określenia granic zapisu i obsługi częściowego niepowodzenia.
-
-Wspólne kontrakty należy rozwijać ostrożnie. Umieszczanie w nich nadmiernie szczegółowych struktur mogłoby prowadzić do odtworzenia silnych zależności, mimo formalnego rozdzielenia projektów.
+Wywołania odbywają się wewnątrz jednego procesu i nie wymagają połączeń HTTP. Upraszcza to komunikację, lecz operacje obejmujące kilka kontekstów bazodanowych nadal wymagają świadomego określenia granic zapisu i obsługi częściowego niepowodzenia.
 
 \section{Zdarzenia domenowe i mechanizm Outbox}
 
-Wybrane zmiany w modelu są reprezentowane przez zdarzenia domenowe. W module \texttt{Delivery} obejmują one między innymi utworzenie, aktualizację i zmianę statusu zadania oraz rozpoczęcie i zakończenie sprintu.
+Wybrane zmiany w modelu reprezentują zdarzenia domenowe, obejmujące w module \texttt{Delivery} między innymi utworzenie, aktualizację i zmianę statusu zadania oraz rozpoczęcie i zakończenie sprintu. Pozwalają one oddzielić podstawową zmianę danych od działań będących jej następstwem, takich jak utworzenie wpisu w rejestrze aktywności.
 
-Zdarzenie opisuje fakt, który wystąpił podczas wykonywania operacji. Pozwala oddzielić podstawową zmianę danych od działań będących jej następstwem, takich jak utworzenie wpisu w rejestrze aktywności.
+Zdarzenia są zapisywane przez interceptor, który podczas zapisu zmian serializuje je i dodaje do kolekcji wiadomości Outbox w tym samym kontekście danych. Zapis zmiany biznesowej i wiadomości odbywa się zatem wspólnie, a procesor działający w tle pobiera następnie wiadomości oczekujące i przekazuje je do zarejestrowanych procedur obsługi. Przetwarzanie pozostaje wewnątrz aplikacji; nie zastosowano zewnętrznego brokera.
 
-Do zapisywania zdarzeń wykorzystano interceptor \texttt{InsertOutboxMessagesInterceptor}. Podczas zapisu zmian odczytuje on zdarzenia zgromadzone przez encje, serializuje je i dodaje do kolekcji wiadomości Outbox w tym samym kontekście danych.
-
-W module \texttt{Delivery} zapis zmiany biznesowej i wiadomości Outbox odbywa się w ramach wspólnego zapisu do bazy. Następnie procesor działający w tle pobiera wiadomości oczekujące i przekazuje je do zarejestrowanych procedur obsługi.
-
-W analizowanej implementacji przetwarzanie odbywa się wewnątrz aplikacji. Nie zastosowano zewnętrznego brokera ani komunikacji zdarzeniowej pomiędzy osobnymi usługami.
-
-Wiadomość zawiera identyfikator, typ, treść, czas wystąpienia oraz informacje o przetworzeniu i ewentualnym błędzie. Istotnym ograniczeniem obecnego rozwiązania jest sposób obsługi niepowodzenia: wiadomość zostaje oznaczona czasem przetworzenia również wtedy, gdy zapisano błąd. Podstawowe zapytanie procesora nie pobiera jej ponownie, dlatego nie należy przypisywać tej implementacji automatycznej polityki ponowień.
-
-Mechanizm nie zapewnia również sam przez się jednokrotnego wykonania wszystkich skutków zdarzenia. Rozbudowa przetwarzania o ponowienia lub wiele instancji aplikacji wymagałaby określenia zasad współbieżności oraz odporności procedur obsługi na powtórzenia.
+Istotnym ograniczeniem obecnego rozwiązania jest obsługa niepowodzenia: wiadomość zostaje oznaczona czasem przetworzenia również wtedy, gdy zapisano błąd, a podstawowe zapytanie procesora nie pobiera jej ponownie. Nie należy zatem przypisywać tej implementacji automatycznej polityki ponowień ani gwarancji jednokrotnego wykonania skutków zdarzenia. Rozbudowa o ponowienia lub wiele instancji aplikacji wymagałaby określenia zasad współbieżności i odporności procedur obsługi na powtórzenia.
 
 \section{Projekt API i obsługa błędów}
 
-Interfejs serwerowy udostępnia zasoby i operacje za pomocą punktów końcowych HTTP. W analizowanej implementacji wykorzystywany jest prefiks \texttt{/api/v1}, a adresy odnoszą się między innymi do projektów, zadań, sprintów i analiz.
+Interfejs serwerowy udostępnia zasoby pod prefiksem \texttt{/api/v1}, stosując metody HTTP zgodnie z ich przyjętym znaczeniem. Kontrakty żądań oddzielono od encji bazodanowych, co pozwala określić, które pola użytkownik może przekazać w danej operacji, i ogranicza przypadkowe ujawnianie wewnętrznego modelu.
 
-Operacje odczytu wykorzystują metodę \texttt{GET}. Tworzenie zasobów i uruchamianie działań odbywa się przez \texttt{POST}, aktualizacje korzystają z \texttt{PATCH} lub \texttt{PUT}, natomiast usuwanie z \texttt{DELETE}.
+Rozstrzygnięciem wartym odnotowania jest obsługa aktualizacji częściowej, w której rozróżniono pominięcie pola od przekazania wartości pustej. Brak pola oznacza pozostawienie dotychczasowej wartości, natomiast jawne przekazanie \texttt{null} jej wyczyszczenie. Rozróżnienie to jest konieczne, aby możliwe było usunięcie wykonawcy, terminu, oszacowania lub przypisania do sprintu.
 
-Kontrakty żądań są oddzielone od encji bazodanowych. Pozwala to określić, które pola użytkownik może przekazać w danej operacji, oraz ograniczyć przypadkowe ujawnianie wewnętrznego modelu.
-
-Przy częściowej aktualizacji zadania zastosowano rozróżnienie pomiędzy pominięciem pola a przekazaniem wartości pustej. Jest ono potrzebne na przykład podczas usuwania wykonawcy lub terminu. Brak pola oznacza pozostawienie dotychczasowej wartości, natomiast jawne przekazanie \texttt{null} może oznaczać jej wyczyszczenie.
-
-Błędy aplikacyjne są przekształcane do odpowiedzi w formacie Problem Details. Wspólny mechanizm mapowania rozróżnia między innymi błędy walidacji, brak zasobu, konflikt i niepoprawne uwierzytelnienie. Odpowiedź może zawierać również szczegółowe informacje o naruszeniach walidacji.
-
-Po stronie klienta zastosowano interceptor błędów HTTP. Centralizuje on wspólną część reakcji na niepowodzenia, podczas gdy widoki mogą uwzględniać znaczenie błędu w konkretnym przypadku użycia.
-
-Dokumentacja OpenAPI ułatwia sprawdzenie dostępnych operacji i kontraktów. Nie zastępuje jednak testów sprawdzających poprawność odpowiedzi, kontrolę dostępu i zachowanie w sytuacjach wyjątkowych.
+Błędy aplikacyjne są przekształcane do formatu Problem Details przez wspólny mechanizm mapowania, rozróżniający między innymi błędy walidacji, brak zasobu, konflikt i niepoprawne uwierzytelnienie. Po stronie klienta odpowiada im interceptor błędów HTTP, centralizujący wspólną część reakcji na niepowodzenia. Dokumentacja OpenAPI ułatwia sprawdzenie dostępnych operacji, lecz nie zastępuje testów weryfikujących poprawność odpowiedzi, kontrolę dostępu i zachowanie w sytuacjach wyjątkowych.
 
 \section{Obsługa analiz wykonywanych w tle}
 
@@ -377,36 +307,18 @@ Obecny procesor jest rozwiązaniem przeznaczonym do działania we wspólnym proc
 
 \section{Architektura aplikacji Angular}
 
-Aplikację kliencką podzielono na obszary funkcjonalne oraz współdzielone mechanizmy. Katalog \texttt{features} zawiera widoki odpowiadające funkcjom systemu, natomiast \texttt{core} obejmuje między innymi uwierzytelnianie, komunikację HTTP i obsługę zdarzeń czasu rzeczywistego.
+Aplikację kliencką podzielono na obszary funkcjonalne w katalogu \texttt{features} oraz mechanizmy współdzielone w \texttt{core}, obejmujące uwierzytelnianie, komunikację HTTP i obsługę zdarzeń czasu rzeczywistego. Routing odzwierciedla kontekst pracy: po wyborze projektu dostępne są widoki pulpitu, tablicy, backlogu, osi czasu, zespołu, kosztów, prognoz, priorytetów i harmonogramu, a identyfikator projektu stanowi część adresu przekazywaną do widoków potomnych.
 
-Routing odzwierciedla kontekst pracy użytkownika. Po wyborze projektu dostępne są widoki pulpitu, tablicy, backlogu, osi czasu, zespołu, kosztów, prognoz, priorytetów i harmonogramu. Identyfikator projektu jest częścią adresu i jest przekazywany do widoków potomnych.
+Komunikację z backendem umieszczono w usługach API, dzięki czemu komponent widoku inicjuje operację i prezentuje wynik, natomiast szczegóły adresów i kontraktów pozostają w warstwie usług. Stan uwierzytelnienia, kontekst projektu i śledzenie analiz przechowują odrębne magazyny oparte na sygnałach Angulara, co pozwala udostępniać aktualne informacje wielu komponentom bez powielania ich obsługi. W konfiguracji HTTP zarejestrowano interceptory uwierzytelniania i błędów, a obsługę połączenia SignalR wydzielono do osobnej usługi.
 
-Widoki są ładowane z wykorzystaniem \texttt{loadComponent}. Wspólny komponent układu aplikacji zapewnia nawigację i otoczenie dla poszczególnych funkcji.
-
-Komunikację z backendem umieszczono w usługach API. Komponent widoku inicjuje operację i prezentuje jej wynik, natomiast szczegóły adresów i kontraktów HTTP pozostają w warstwie usług.
-
-Stan uwierzytelnienia przechowuje \texttt{AuthStore}, wykorzystujący sygnały Angulara. Analogiczne rozdzielenie odpowiedzialności zastosowano dla kontekstu projektu i śledzenia analiz. Pozwala to udostępniać aktualne informacje wielu komponentom bez powielania ich obsługi.
-
-W konfiguracji HTTP zarejestrowano interceptor uwierzytelniania i interceptor błędów. Obsługę połączenia SignalR wydzielono do osobnej usługi, dzięki czemu komponenty nie muszą samodzielnie zarządzać szczegółami połączenia.
-
-Projekt rozróżnia sposób renderowania części publicznej i części dostępnej po zalogowaniu. Strony publiczne są skonfigurowane do prerenderowania, natomiast ścieżki projektowe korzystają z renderowania po stronie klienta. Przy uruchomieniu aplikacji w przeglądarce podejmowana jest próba odtworzenia sesji.
-
-Taki podział wiąże zakres danych użytkownika z jego sesją i pozwala utrzymać wspólną organizację interfejsu niezależnie od rodzaju prezentowanej analizy.
+Część publiczna i część dostępna po zalogowaniu różnią się sposobem renderowania: strony publiczne są prerenderowane, natomiast ścieżki projektowe korzystają z renderowania po stronie klienta, z próbą odtworzenia sesji przy uruchomieniu. Podział ten wiąże zakres danych użytkownika z jego sesją.
 
 \section{Uwierzytelnianie i kontrola dostępu}
 
-Uwierzytelnianie oparto na tokenie dostępu JWT oraz tokenie odświeżania sesji. Token dostępu jest wykorzystywany podczas komunikacji z chronionymi punktami końcowymi.
+Uwierzytelnianie oparto na tokenie dostępu JWT oraz tokenie odświeżania sesji. Token dostępu przechowywany jest w pamięci magazynu stanu aplikacji klienckiej, natomiast token odświeżania w ciasteczku z atrybutami \texttt{HttpOnly}, \texttt{Secure} i \texttt{SameSite=Strict}. Backend przechowuje wyłącznie skrót tokenu odświeżania, a podczas odnowienia sesji unieważnia dotychczasowy token i tworzy nową parę.
 
-W aplikacji Angular token dostępu znajduje się w pamięci magazynu stanu. Token odświeżania jest obsługiwany przez ciasteczko z atrybutami \texttt{HttpOnly}, \texttt{Secure} i \texttt{SameSite=Strict}. Po ponownym otwarciu strony klient próbuje uzyskać nowy token dostępu przez operację odświeżenia.
+Uwierzytelnienie nie jest równoznaczne z prawem dostępu do dowolnego projektu. Sprawdzenie realizuje kontrakt \texttt{IProjectAccessService}, uwzględniający właściciela projektu i członkostwo w zespole, a dla wpisu niepowiązanego jeszcze z kontem także porównanie adresu e-mail. Kontrola ta obejmuje również kanał SignalR: połączenie jest przypisywane do grupy projektu dopiero po pozytywnej weryfikacji. Strażnik tras po stronie Angulara organizuje natomiast wyłącznie nawigację, a właściwa ochrona zasobów pozostaje odpowiedzialnością serwera.
 
-Backend przechowuje skrót tokenu odświeżania. Podczas odnowienia sesji dotychczasowy token jest unieważniany, a następnie tworzona jest nowa para tokenów. Wylogowanie obejmuje unieważnienie aktywnego tokenu odświeżania.
-
-Uwierzytelnienie nie jest równoznaczne z prawem dostępu do dowolnego projektu. Do sprawdzania dostępu zastosowano kontrakt \texttt{IProjectAccessService}. Jego implementacja uwzględnia właściciela projektu i członkostwo w zespole. Dla wpisu członka niepowiązanego jeszcze z identyfikatorem konta przewidziano również porównanie adresu e-mail.
-
-Kontrola dostępu dotyczy także kanału SignalR. Podczas nawiązywania połączenia komponent \texttt{ProjectHub} sprawdza identyfikator użytkownika i prawo dostępu do projektu. Dopiero po pozytywnej weryfikacji połączenie jest przypisywane do grupy tego projektu.
-
-Po stronie Angulara zastosowano strażnika tras ograniczającego wejście do części aplikacji wymagającej sesji. Mechanizm ten organizuje nawigację, natomiast właściwa ochrona zasobów pozostaje odpowiedzialnością serwera.
-
-Projekt bezpieczeństwa wymaga rozróżnienia dostępu do projektu od uprawnień do poszczególnych działań. Sama obecność pola opisującego rolę członka zespołu nie dowodzi istnienia kompletnej macierzy uprawnień. Ocena zgodności implementacji z wymaganiami powinna obejmować testy konkretnych operacji odczytu i zapisu oraz prób dostępu do danych innych projektów.
+Projekt bezpieczeństwa wymaga odróżnienia dostępu do projektu od uprawnień do poszczególnych działań. Obecność pola opisującego rolę członka zespołu nie dowodzi istnienia kompletnej macierzy uprawnień, wobec czego ocena zgodności z wymaganiami powinna obejmować testy konkretnych operacji oraz prób dostępu do danych innych projektów.
 
 Przedstawiona architektura określa miejsca realizacji tych kontroli oraz granice odpowiedzialności komponentów. Szczegóły implementacji funkcji użytkowych i mechanizmów analitycznych omówiono w kolejnych rozdziałach.

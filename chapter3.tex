@@ -26,9 +26,7 @@ Przyjęto następujące kryteria:
     \item \textbf{Przydatność jako punkt odniesienia dla PlanWise} --- możliwość wskazania wzorców funkcjonalnych oraz obszarów wymagających własnego modelowania i oceny.
 \end{enumerate}
 
-Dostępność funkcji może zależeć od planu subskrypcji, konfiguracji, uprawnień oraz zastosowanych rozszerzeń. Nie przyjęto zatem uproszczonego założenia, że wszystkie możliwości opisane przez producenta są dostępne w każdej wersji produktu.
-
-Rozróżniono również deklarowaną dostępność funkcji od jej potwierdzonej skuteczności. Informacja o wykorzystaniu AI nie stanowi sama w sobie dowodu trafności prognoz ani poprawy wyników projektowych.
+Przy porównaniu przyjęto dwa zastrzeżenia obowiązujące dla wszystkich analizowanych produktów. Dostępność funkcji zależy od planu subskrypcji, konfiguracji, uprawnień i rozszerzeń, wobec czego nie założono, że każda opisana przez producenta możliwość występuje w każdej wersji. Odróżniono również deklarowaną dostępność funkcji od jej potwierdzonej skuteczności: informacja o wykorzystaniu AI nie stanowi dowodu trafności prognoz ani poprawy wyników projektowych, a niniejsza analiza nie obejmowała pomiaru jakości rekomendacji żadnego z tych narzędzi.
 
 
 \section{Charakterystyka wybranych rozwiązań}
@@ -41,7 +39,7 @@ Jira udostępnia mechanizmy planowania i przypisywania pracy, zarządzania zale�
 
 W materiałach producenta przedstawiono zastosowania Rovo AI związane z planowaniem i przypisywaniem zadań, tworzeniem automatyzacji oraz identyfikowaniem ryzyk i trendów. Jira nie powinna być zatem traktowana jako narzędzie ograniczone wyłącznie do przechowywania danych.\footnote{Atlassian, \textit{Rovo in Jira: AI features}, \url{https://www.atlassian.com/software/jira/ai}, dostęp: 10.09.2026.}
 
-Na potrzeby niniejszej pracy Jira stanowi punkt odniesienia dla konfigurowalności procesu oraz łączenia danych projektowych z funkcjami analitycznymi. Porównanie z PlanWise dotyczy jednak sposobu organizacji rozwiązania i zakresu wspomaganych decyzji. Bez kontrolowanego eksperymentu nie można na tej podstawie stwierdzić przewagi któregokolwiek systemu pod względem jakości rekomendacji.
+Na potrzeby niniejszej pracy Jira stanowi punkt odniesienia dla konfigurowalności procesu oraz łączenia danych projektowych z funkcjami analitycznymi.
 
 
 \subsection{Trello}
@@ -51,9 +49,7 @@ Trello organizuje pracę za pomocą tablic, list i kart. Karty pozwalają gromad
 
 Dokumentacja Trello opisuje automatyzacje oparte na regułach, przyciski uruchamiające sekwencje działań oraz polecenia związane z terminami i kalendarzem. Przykładem jest przeniesienie karty lub przypisanie osoby po wystąpieniu określonego zdarzenia.\footnote{Atlassian, \textit{How to use Trello automation for task automation}, \url{https://trello.com/guide/automate-anything}, dostęp: 10.09.2026.}
 
-Reguła automatyzacji opisuje działanie wykonywane po spełnieniu warunku. Nie należy utożsamiać jej z modelem uczonym na danych historycznych ani z rozwiązaniem problemu optymalizacyjnego. W odniesieniu do PlanWise istotne jest zatem oddzielenie automatyzacji obsługi zadań od analitycznej oceny ryzyka, kosztów i przydziału zasobów.
-
-Na podstawie przeanalizowanych materiałów nie rozstrzygnięto pełnego zakresu możliwości uzyskiwanych przez dodatkowe integracje Trello. Brak opisu konkretnego mechanizmu w wykorzystanym źródle nie został potraktowany jako dowód jego niedostępności w całym ekosystemie produktu.
+Reguła automatyzacji opisuje działanie wykonywane po spełnieniu warunku i nie należy utożsamiać jej z modelem uczonym na danych ani z rozwiązaniem problemu optymalizacyjnego. Dla PlanWise istotne jest zatem oddzielenie automatyzacji obsługi zadań od analitycznej oceny ryzyka, kosztów i przydziału zasobów. Brak opisu konkretnego mechanizmu w wykorzystanym źródle nie został przy tym potraktowany jako dowód jego niedostępności w całym ekosystemie produktu.
 
 
 \subsection{Azure Boards}
@@ -63,9 +59,7 @@ Azure Boards udostępnia elementy pracy, tablice, backlogi, sprinty, zapytania i
 
 Funkcja Delivery Plans pozwala przeglądać planowane prace zespołów na osi czasu i analizować zależności. Stanowi to punkt odniesienia dla prezentacji relacji między zakresem a terminami w PlanWise.\footnote{Microsoft, \textit{Use team delivery plans}, \url{https://learn.microsoft.com/en-us/azure/devops/boards/plans/review-team-plans?view=azure-devops}, dostęp: 10.09.2026.}
 
-Azure Boards pozwala również określać pojemność członków zespołu w sprincie, rodzaje wykonywanych działań i dni nieobecności. Rozwiązanie to pokazuje znaczenie odnoszenia dostępności do konkretnego okresu planowania.\footnote{Microsoft, \textit{Set the team sprint capacity in Azure Boards}, \url{https://learn.microsoft.com/en-us/azure/devops/boards/sprints/set-capacity?view=azure-devops}, dostęp: 10.09.2026.}
-
-W niniejszej analizie nie oceniano skuteczności rozwiązań AI dostępnych przez integracje. Potwierdzona możliwość połączenia z asystentem nie jest równoznaczna z potwierdzeniem jakości predykcji opóźnień lub estymacji kosztów w scenariuszach przyjętych dla pracy.
+Azure Boards pozwala również określać pojemność członków zespołu w sprincie, rodzaje wykonywanych działań i dni nieobecności. Rozwiązanie to pokazuje znaczenie odnoszenia dostępności do konkretnego okresu planowania i stanowi punkt odniesienia dla ograniczeń modelu pojemności przyjętego w PlanWise.\footnote{Microsoft, \textit{Set the team sprint capacity in Azure Boards}, \url{https://learn.microsoft.com/en-us/azure/devops/boards/sprints/set-capacity?view=azure-devops}, dostęp: 10.09.2026.}
 
 
 \section{Porównanie funkcji organizacyjnych i mechanizmów inteligentnych}
@@ -280,76 +274,29 @@ Weryfikacja tych wymagań obejmuje różne metody. Izolację dostępu sprawdza s
 \section{Najważniejsze przypadki użycia}
 \label{sec:przypadki-uzycia}
 
-Przypadki użycia przedstawiają działania użytkowników prowadzące do osiągnięcia określonego celu. Opisują zachowanie docelowe, a ich realizacja podlega sprawdzeniu w części testowej pracy.
+Przypadki użycia przedstawiają działania użytkowników prowadzące do osiągnięcia określonego celu. Opisują zachowanie docelowe, a ich realizacja podlega sprawdzeniu w części testowej pracy. Dla każdego podano aktora, przebieg podstawowy oraz sytuacje, w których operacja nie dochodzi do skutku.
 
-\subsection{Utworzenie projektu i przygotowanie zespołu}
-\label{subsec:pu-utworzenie-projektu}
+\begin{description}
+    \item[PU-01. Utworzenie projektu i przygotowanie zespołu.]
+    \label{subsec:pu-utworzenie-projektu}
+    Zalogowany użytkownik podaje dane projektu i zatwierdza jego utworzenie, po czym określa uczestników wraz z ich rolami, kompetencjami, pojemnością i stawkami godzinowymi. Rezultatem jest projekt dostępny dla uprawnionych osób, zawierający dane zespołu potrzebne do dalszego planowania. Niepoprawne dane lub brak uprawnień powodują odrzucenie operacji.
 
-\textbf{Aktor:} zalogowany użytkownik posiadający uprawnienie do tworzenia projektów.
+    \item[PU-02. Przygotowanie backlogu i zaplanowanie sprintu.]
+    \label{subsec:pu-planowanie-sprintu}
+    Użytkownik uprawniony do zarządzania zadaniami tworzy je i uzupełnia opisy, oszacowania, wartość biznesową oraz zależności, następnie tworzy sprint i przypisuje do niego wybrane elementy backlogu. Po rozpoczęciu sprintu zespół aktualizuje stany zadań na tablicy. Niepoprawne daty, niedozwolone powiązania lub brak uprawnień uniemożliwiają zapis zmiany.
 
-\textbf{Warunek wstępny:} użytkownik posiada aktywną sesję.
+    \item[PU-03. Analiza ryzyka i priorytetyzacja backlogu.]
+    \label{subsec:pu-ryzyko-priorytety}
+    Kierownik projektu uruchamia ocenę ryzyka, a system rejestruje operację, wykonuje obliczenia i udostępnia wynik wraz z czynnikami wpływającymi na ocenę oraz nazwą metody, która ją wykonała. Następnie użytkownik uruchamia priorytetyzację i przegląda rekomendowaną kolejność, która zmienia backlog dopiero po zatwierdzeniu. Brak danych lub błąd obliczeń prowadzi do przedstawienia ograniczenia albo statusu niepowodzenia, a odrzucenie rekomendacji nie zmienia backlogu.
 
-Użytkownik podaje dane projektu i zatwierdza jego utworzenie. System weryfikuje dane oraz zapisuje przedsięwzięcie. Następnie uprawniona osoba określa uczestników, ich role, kompetencje, pojemność i stawki godzinowe.
+    \item[PU-04. Analiza harmonogramu i zastosowanie propozycji przydziału.]
+    \label{subsec:pu-harmonogram}
+    Użytkownik uprawniony do planowania przegląda harmonogram, terminy i zadania krytyczne, po czym uruchamia przygotowanie propozycji przydziału. System przedstawia proponowanych wykonawców wraz z przyjętą funkcją celu, ograniczeniami uwzględnionymi i pominiętymi oraz informacją o zastosowanej metodzie, a użytkownik zatwierdza całość lub wybrane zmiany. Brak odpowiednich wykonawców, cykl zależności lub zmiana danych od czasu analizy wymagają zgłoszenia problemu albo ponownego przeliczenia wyniku.
 
-\textbf{Rezultat:} projekt jest dostępny dla uprawnionych osób i posiada dane zespołu potrzebne do dalszego planowania.
-
-\textbf{Przebieg alternatywny:} niepoprawne dane lub brak uprawnień powodują odrzucenie operacji i przedstawienie odpowiedniego komunikatu.
-
-
-\subsection{Przygotowanie backlogu i zaplanowanie sprintu}
-\label{subsec:pu-planowanie-sprintu}
-
-\textbf{Aktor:} użytkownik posiadający uprawnienia do zarządzania zadaniami i sprintami.
-
-\textbf{Warunek wstępny:} istnieje dostępny projekt.
-
-Użytkownik tworzy zadania, uzupełnia ich opisy, oszacowania, wartość biznesową i zależności. Następnie tworzy sprint, określa jego termin i przypisuje wybrane elementy backlogu. Po rozpoczęciu sprintu zespół aktualizuje stany zadań na tablicy.
-
-\textbf{Rezultat:} system przechowuje zakres zaplanowanej pracy i umożliwia śledzenie jej realizacji.
-
-\textbf{Przebieg alternatywny:} niepoprawne daty, niedozwolone powiązania lub brak uprawnień uniemożliwiają zapis odpowiedniej zmiany.
-
-
-\subsection{Analiza ryzyka i priorytetyzacja backlogu}
-\label{subsec:pu-ryzyko-priorytety}
-
-\textbf{Aktor:} kierownik projektu lub inny uprawniony użytkownik.
-
-\textbf{Warunek wstępny:} projekt zawiera zadania możliwe do analizy.
-
-Użytkownik uruchamia ocenę ryzyka. System rejestruje operację, wykonuje obliczenia i udostępnia wynik wraz z czynnikami wpływającymi na ocenę. Następnie użytkownik uruchamia priorytetyzację backlogu i przegląda rekomendowaną kolejność.
-
-\textbf{Rezultat:} użytkownik otrzymuje informacje o ryzyku i propozycję uporządkowania pracy. Zmiana kolejności następuje po zatwierdzeniu.
-
-\textbf{Przebieg alternatywny:} brak danych lub błąd obliczeń prowadzą do przedstawienia ograniczenia albo statusu niepowodzenia. Odrzucenie rekomendacji nie zmienia backlogu.
-
-
-\subsection{Analiza harmonogramu i zastosowanie propozycji przydziału}
-\label{subsec:pu-harmonogram}
-
-\textbf{Aktor:} kierownik projektu lub inny użytkownik uprawniony do planowania.
-
-\textbf{Warunek wstępny:} dostępne są zadania, ich zależności i dane zespołu.
-
-Użytkownik przegląda harmonogram, terminy i zadania krytyczne. Następnie uruchamia przygotowanie propozycji przydziału pracy. System przedstawia proponowanych wykonawców, założenia i ograniczenia metody. Użytkownik zatwierdza całość lub wybrane zmiany.
-
-\textbf{Rezultat:} zaakceptowane przypisania zostają zapisane po sprawdzeniu ich aktualnej dopuszczalności.
-
-\textbf{Przebieg alternatywny:} brak odpowiednich wykonawców, cykl zależności lub zmiana danych od czasu analizy wymagają zgłoszenia problemu, odrzucenia niedopuszczalnej zmiany albo ponownego przeliczenia wyniku.
-
-
-\subsection{Przygotowanie estymacji kosztów}
-\label{subsec:pu-estymacja-kosztow}
-
-\textbf{Aktor:} użytkownik uprawniony do analizy kosztów projektu.
-
-\textbf{Warunek wstępny:} dostępny jest backlog i konfiguracja integracji z LLM. Braki w danych zespołu lub stawkach muszą być jawnie obsłużone.
-
-Użytkownik uruchamia estymację. System przygotowuje kontekst projektu, przekazuje go do modelu i odbiera ustrukturyzowaną odpowiedź. Po weryfikacji wynik zostaje zapisany i udostępniony wraz z wariantami, składnikami kosztów oraz założeniami. Użytkownik porównuje estymację z budżetem i analizuje rekomendacje redukcji kosztów.
-
-\textbf{Rezultat:} dostępny jest wynik estymacji powiązany z projektem i możliwy do późniejszego przeglądania.
-
-\textbf{Przebieg alternatywny:} błąd usługi, niezgodna struktura lub niespójne obliczenia powodują odrzucenie wyniku albo uruchomienie określonej procedury korekty. Niepoprawny rezultat nie powinien być prezentowany jako zatwierdzony kosztorys.
+    \item[PU-05. Przygotowanie estymacji kosztów.]
+    \label{subsec:pu-estymacja-kosztow}
+    Użytkownik uprawniony do analizy kosztów uruchamia estymację, a system przygotowuje kontekst projektu, przekazuje go do modelu i odbiera ustrukturyzowaną odpowiedź. Po weryfikacji wynik zostaje zapisany i udostępniony wraz z wariantami, składnikami kosztów i założeniami, co pozwala porównać go z budżetem i przeanalizować rekomendacje redukcji. Błąd usługi, niezgodna struktura lub niespójne obliczenia powodują odrzucenie wyniku; niepoprawny rezultat nie jest prezentowany jako zatwierdzony kosztorys.
+\end{description}
 
 
 \section{Ograniczenia i kryteria oceny rozwiązania}
