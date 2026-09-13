@@ -5,7 +5,7 @@ Ocena systemu PlanWise wymaga rozróżnienia poprawności działania aplikacji o
 
 W rozdziale przedstawiono zakres testów obecnych w repozytorium, scenariusze weryfikacji funkcjonalnej oraz metodykę eksperymentów dotyczących ryzyka, priorytetów, przydziałów i kosztów. Oddzielono ustalenia wynikające z analizy kodu od wyników wymagających uruchomienia aplikacji i przeprowadzenia pomiarów.
 
-Na etapie przygotowania niniejszego opisu nie przedstawiono raportu z wykonania pełnego zestawu testów ani wyników eksperymentów porównawczych. Z tego powodu opis procedur badawczych nie jest równoznaczny z potwierdzeniem ich wykonania.
+Zakres przedstawionych wyników jest przy tym nierówny i zostało to w rozdziale jawnie zaznaczone. Dysponujemy raportem z wykonania zautomatyzowanego zestawu testów oraz wynikami eksperymentów dotyczących modelu predykcji opóźnień, przeprowadzonych na zewnętrznych zbiorach danych. Nie przeprowadzono natomiast eksperymentów porównawczych dla priorytetyzacji, przydziału zadań i estymacji kosztów, dla których rozdział przedstawia wyłącznie zaplanowaną metodykę. Opis procedury badawczej nie jest zatem równoznaczny z potwierdzeniem jej wykonania i miejsca te oznaczono osobno.
 
 \section{Cele i zakres weryfikacji}
 
@@ -51,6 +51,41 @@ Istotne jest uwzględnienie pamięci podręcznej estymacji kosztów. Wielokrotne
 % wersja kodu, środowisko, konfiguracja, identyfikatory danych,
 % liczba powtórzeń i terminy wykonania eksperymentów.
 
+\section{Wyniki wykonania zestawu testów}
+\label{sec:wyniki-testow}
+
+Zautomatyzowany zestaw testów uruchomiono dla bieżącej wersji rozwiązania. Wykonano 45 testów, z których wszystkie zakończyły się powodzeniem; żaden nie został pominięty. Podział na projekty testowe przedstawia tabela~\ref{tab:wyniki-testow}.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Wynik uruchomienia zautomatyzowanego zestawu testów}
+    \label{tab:wyniki-testow}
+    \begin{tabularx}{\textwidth}{@{}Xrrr@{}}
+        \toprule
+        \textbf{Projekt testowy} & \textbf{Wykonane} & \textbf{Powodzenie} & \textbf{Niepowodzenie} \\
+        \midrule
+        Predykcja ryzyka (warstwa aplikacji) & 21 & 21 & 0 \\
+        Testy architektoniczne & 9 & 9 & 0 \\
+        Tożsamość i dostęp (warstwa aplikacji) & 8 & 8 & 0 \\
+        Harmonogramowanie (warstwa infrastruktury) & 7 & 7 & 0 \\
+        \midrule
+        \textbf{Razem} & \textbf{45} & \textbf{45} & \textbf{0} \\
+        \bottomrule
+    \end{tabularx}
+
+    \par\smallskip
+    \begin{minipage}{\textwidth}
+        \footnotesize
+        Źródło: opracowanie własne na podstawie uruchomienia zestawu testów
+        dla opisanej wersji rozwiązania.
+    \end{minipage}
+\end{table}
+
+Rozkład ten sam w sobie stanowi wynik wart odnotowania. Najliczniejszy zestaw dotyczy modelu predykcyjnego, co odpowiada temu, że jest to element, którego niepoprawne działanie najtrudniej zauważyć: błąd w odwzorowaniu cech lub w kolejności przekształceń nie powoduje awarii, lecz ciche zwracanie wartości innych niż ocenione. Zakres pokrycia pozostaje natomiast nierównomierny, ponieważ moduły realizacji pracy, powiadomień i estymacji kosztów nie posiadają własnych projektów testowych.
+
+Liczba wykonanych testów nie jest miarą jakości rozwiązania i nie należy jej tak interpretować. Wynik ten potwierdza wyłącznie, że sprawdzane własności zachodzą w badanej wersji kodu.
+
 \section{Testy architektoniczne}
 
 W repozytorium znajduje się projekt \texttt{PlanWise.ArchitectureTests}. Zawiera testy kierunku zależności dla wszystkich ośmiu modułów oraz test ograniczający bezpośrednie odwołania między modułami.
@@ -61,7 +96,7 @@ Testy architektoniczne mają znaczenie szczególnie podczas rozbudowy wspólnych
 
 Zakres tych testów jest jednak ograniczony. Nie potwierdzają one poprawności zapytań do bazy, skuteczności autoryzacji ani atomowości operacji obejmujących kilka kontekstów danych. Nie wykrywają również każdej zależności semantycznej wynikającej z zawartości kontraktów.
 
-Na podstawie przeglądu repozytorium można potwierdzić obecność tych testów. Potwierdzenie ich przejścia wymaga raportu z uruchomienia dla wskazanej wersji aplikacji.
+Wszystkie dziewięć testów architektonicznych zakończyło się powodzeniem w uruchomieniu opisanym w sekcji~\ref{sec:wyniki-testow}. Oznacza to, że rozbudowa modułów o granice modeli, kolejne implementacje oraz część odpowiedzialną za dane uczące nie naruszyła przyjętego kierunku zależności ani izolacji obszarów funkcjonalnych.
 
 \section{Testy jednostkowe i weryfikacja reguł domenowych}
 
@@ -241,7 +276,57 @@ Podział na część uczącą i testową musi grupować obserwacje według zadan
 
 Obserwacje cenzurowane wymagają odrębnego potraktowania zależnie od sformułowania zadania. W ujęciu klasyfikacyjnym informacja o wystąpieniu opóźnienia jest pełna i obserwacja może zostać wykorzystana bezpośrednio. W ujęciu regresyjnym zapisana liczba dni stanowi jedynie dolne ograniczenie, dlatego takie obserwacje należy albo wyłączyć, albo zastosować metodę uwzględniającą cenzurowanie. Przyjęte rozwiązanie trzeba podać wraz z wynikiem.
 
-Porównanie z modelem bazowym powinno zostać przeprowadzone na tych samych obserwacjach testowych. Jest to wykonalne bez ponownego uruchamiania systemu, ponieważ wraz z każdą obserwacją zapisano prognozę wygenerowaną w danym dniu oraz nazwę modelu, który ją sporządził. Zgromadzone dane pozwalają zatem ocenić również jakość obecnej heurystyki, a nie wyłącznie jej przyszłego następcy.
+Porównanie z modelem bazowym powinno zostać przeprowadzone na tych samych obserwacjach testowych. Jest to wykonalne bez ponownego uruchamiania systemu, ponieważ wraz z każdą obserwacją zapisano prognozę wygenerowaną w danym dniu oraz nazwę modelu, który ją sporządził. Zgromadzone dane pozwalają zatem ocenić również jakość obecnej heurystyki, a nie wyłącznie jej następcy.
+
+\subsection{Wyniki oceny modelu uczonego}
+
+Ocenę modelu predykcji opóźnień przeprowadzono na zewnętrznym zbiorze danych, ponieważ dane gromadzone przez system nie osiągnęły wymaganej liczebności. Zastosowaną metodykę, przyjętą definicję etykiety, wykryte źródła przecieku informacji oraz uzyskane wartości miar przedstawiono w sekcji~\ref{subsec:protokoly-oceny}, aby zachować je w bezpośrednim sąsiedztwie opisu samego modelu. W tym miejscu odniesiono je do przyjętych kryteriów oceny rozwiązania.
+
+Wynik należy uznać za częściowe spełnienie kryterium jakości predykcji. Wykazano przewagę nad metodą odniesienia w protokole odpowiadającym rzeczywistym warunkom użycia, czyli na projektach nieobecnych w zbiorze uczącym, przy wartości pola pod krzywą ROC wynoszącej 0,589 wobec 0,500. Jednocześnie wielkość tej przewagi nie uprawnia do twierdzenia o wysokiej trafności prognoz pojedynczych zadań.
+
+Nie wykazano natomiast przewagi modelu uczonego nad heurystyką stosowaną w systemie. Obie metody nie zostały dotąd porównane na tych samych danych, ponieważ heurystyka operuje na cechach częściowo niedostępnych w zbiorze zewnętrznym, przede wszystkim na terminie pojedynczego zadania. Porównanie takie jest wykonalne dopiero na danych gromadzonych przez wdrożenie i pozostaje zadaniem otwartym. Z tego powodu model uczony nie został uczyniony metodą domyślną.
+
+Kryterium przejrzystości rekomendacji uznano za spełnione w stopniu wyższym niż dla metody bazowej, ponieważ wkłady poszczególnych cech sumują się dokładnie do wartości funkcji decyzyjnej, co podlega sprawdzeniu testem. Kryterium prezentowania ograniczeń uznano za spełnione przez dołączanie do każdego uruchomienia informacji o pochodzeniu danych uczących, o braku kalibracji na danych wdrożenia oraz o tym, która część wyniku nie pochodzi z modelu.
+
+\subsection{Pomocnicze studium czasu obsługi zgłoszenia}
+
+Odrębnie przeprowadzono studium na zbiorze odrzuconym na etapie doboru danych, opisanym w sekcji~\ref{subsec:dobor-zbioru-danych}. Ponieważ zbiór ten nie pozwalał zbudować etykiety opóźnienia, zmieniono pytanie badawcze na przewidywanie czasu obsługi zgłoszenia liczonego od jego utworzenia do rozwiązania.
+
+Studium to zachowano w pracy przede wszystkim ze względu na wykrytą w nim pułapkę metodyczną, która ma znaczenie ogólniejsze. Eksport danych stanowi migawkę wykonaną w ustalonym dniu, wobec czego zgłoszenie utworzone niedawno może wyglądać na rozwiązane szybko wyłącznie dlatego, że inaczej nie zdążyłoby się jeszcze rozwiązać. Pierwsza wersja eksperymentu, ucząca się na zgłoszeniach rozwiązanych i dzieląca dane według daty, dała wartość pola pod krzywą ROC równą 0,385, czyli gorszą od losowej. Mierzyła bowiem artefakt obcięcia obserwacji, a nie zdolność predykcyjną.
+
+Zastosowano dwie poprawki. Wprowadzono okno obserwacji, dopuszczające wyłącznie zgłoszenia utworzone co najmniej rok przed datą migawki, tak aby każde miało tyle samo czasu na rozwiązanie. Zgłoszenia nierozwiązane potraktowano ponadto jako obserwacje klasy negatywnej, zamiast je odrzucać; ich pominięcie stanowiłoby selekcję obserwacji przetrwałych, ponieważ zgłoszenia nigdy nierozwiązane są systematycznie tymi najtrudniejszymi. Po tych poprawkach udziały klas w zbiorze uczącym i testowym zrównały się z dokładnością do około jednego punktu procentowego.
+
+Wyniki dla progu trzydziestu dni przedstawia tabela~\ref{tab:wyniki-studium-pomocniczego}.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Przewidywanie rozwiązania zgłoszenia w ciągu trzydziestu dni}
+    \label{tab:wyniki-studium-pomocniczego}
+    \begin{tabularx}{\textwidth}{@{}Xll@{}}
+        \toprule
+        \textbf{Zestaw cech} & \textbf{ROC AUC} & \textbf{Przyrost w pierwszym decylu} \\
+        \midrule
+        Metoda odniesienia & 0,500 & 0,89 \\
+        Metadane & 0,741 & 1,25 \\
+        Tekstowe & 0,647 & 3,75 \\
+        Łączone & \textbf{0,795} & \textbf{4,06} \\
+        \bottomrule
+    \end{tabularx}
+
+    \par\smallskip
+    \begin{minipage}{\textwidth}
+        \footnotesize
+        Źródło: opracowanie własne. Zbiór testowy liczył 7\,968 zgłoszeń
+        przy udziale klasy pozytywnej 4,9\%.
+    \end{minipage}
+\end{table}
+
+Wyniki te są wyraźnie lepsze niż w zadaniu predykcji opóźnienia sprintu, czego nie należy jednak odczytywać jako sprzeczności. Są to dwa różne zadania, o różnych definicjach zdarzenia i różnych udziałach klas, a łatwiejsze z nich dotyczy kolejki zgłoszeń publicznych, nie zaś dotrzymywania zobowiązań sprintu.
+
+Dla PlanWise istotne są dwa wnioski. Pierwszy dotyczy komplementarności: żaden zestaw cech osobno nie osiąga wyniku zestawu łączonego, a znaczenie cech tekstowych rośnie wraz z wydłużaniem horyzontu prognozy, podczas gdy same metadane tracą wówczas zdolność różnicującą. Drugi powtarza obserwację z zadania głównego: także tutaj model o dobrym uporządkowaniu wypada gorzej od modelu stałego pod względem miary Briera, co potwierdza, że kalibracja wymaga osobnego kroku i nie wynika z jakości rankingu.
+
+Ze studium tego nie wyprowadzono natomiast wniosków o wielkości nakładu pracy dla zadań w PlanWise. Mediana czasu obsługi w badanym zbiorze wynosi 128 dni, co odpowiada publicznej kolejce zgłoszeń, a nie realizacji zadań w sprincie.
 
 \section{Ocena priorytetyzacji backlogu}
 
@@ -268,6 +353,12 @@ gdzie \(r_i^{(a)}\) i \(r_i^{(b)}\) oznaczają pozycje tego samego zadania w dw�
 Jeżeli dostępni są oceniający posiadający doświadczenie projektowe, mogą przygotować niezależną kolejność na podstawie wspólnego opisu celu i ograniczeń. Należy jednak raportować również rozbieżności między oceniającymi, ponieważ nie zawsze istnieje jeden poprawny ranking.
 
 Sama zgodność z oceną eksperta nie dowodzi poprawy wyniku projektu. Może natomiast wskazywać, czy rekomendacja jest zrozumiała i odpowiada zadanym preferencjom.
+
+Obecność dwóch implementacji wymaga rozszerzenia planu oceny o porównanie między nimi. Zestawienie heurystyki punktowej z porządkowaniem przez model językowy powinno obejmować zgodność obu kolejności, ich zgodność z niezależnym punktem odniesienia oraz kompletność wyniku, ponieważ model językowy może zwrócić mniej pozycji, niż otrzymał.
+
+Osobno należy zmierzyć powtarzalność, która dla obu metod ma zupełnie inny charakter. Heurystyka jest deterministyczna, wobec czego dla niezmienionych danych daje wynik identyczny. Dla modelu językowego powtarzalność trzeba zbadać przez wielokrotne wywołanie z tym samym wejściem i opisać rozrzut uzyskanych pozycji, przy czym za miarę można przyjąć średnią zmianę pozycji zadania zdefiniowaną wzorem~\eqref{eq:testy-zmiana-rankingu}, stosowanym tu do dwóch przebiegów tej samej metody zamiast do dwóch różnych metod.
+
+Wynik tego porównania nie jest przesądzony i nie należy zakładać przewagi żadnej ze stron. Model językowy operuje na opisach zadań, których ocena punktowa w ogóle nie analizuje, lecz czyni to kosztem determinizmu i możliwości prześledzenia obliczeń.
 
 \section{Ocena harmonogramu i przydziałów}
 
@@ -303,7 +394,13 @@ Poprawność dopasowania kompetencji warto sprawdzić względem ręcznie opisany
 
 Porównanie obciążenia przed przydzieleniem i po nim wymaga ostrożności, ponieważ zwiększa się całkowity zakres przypisanej pracy. Podstawą oceny jakości powinno być porównanie metod po rozdzieleniu tego samego zakresu.
 
-Obecny algorytm nie optymalizuje terminów. Nie można zatem na podstawie samego zmniejszenia rozstępu obciążenia wnioskować o skróceniu projektu lub liczbie unikniętych dni opóźnienia.
+Zasadnicza zmiana w stosunku do wcześniejszej wersji dotyczy jednak doboru miary. Dopóki jedyną metodą była heurystyka zachłanna, ocena musiała ograniczać się do równomierności obciążenia, a wnioskowanie z niej o skróceniu projektu byłoby nieuprawnione. Solver optymalizuje natomiast bezpośrednio długość projektu, wobec czego to ona stanowi właściwą miarę porównawczą, a rozstęp obciążenia staje się wielkością pomocniczą.
+
+Porównanie obu metod musi przy tym odbywać się względem tej samej wielkości i przy tych samych ograniczeniach. Samo zestawienie długości projektu wyznaczonej przez solver z sumą punktów przypisanych przez heurystykę nie byłoby porównaniem, ponieważ heurystyka nie wyznacza terminów. Poprawne postępowanie polega na rozplanowaniu wyborów heurystyki w tym samym modelu czasu, którym posługuje się solver, i porównaniu wynikających stąd terminów zakończenia. Taki sposób obliczania przewidywanej korzyści zastosowano w implementacji.
+
+Ocena powinna ponadto rozróżniać przypadki zakończone rozwiązaniem dowiedzionym jako optymalne od tych, w których znaleziono jedynie rozwiązanie dopuszczalne, oraz osobno raportować udział uruchomień zakończonych wykonaniem metody zastępczej. Rosnący udział tych ostatnich wraz z wielkością projektu wyznacza praktyczną granicę stosowalności solvera i powinien zostać zmierzony dla projektów o różnej liczbie zadań.
+
+Osobnej weryfikacji wymagają ograniczenia zadeklarowane jako dotrzymane. Należy sprawdzić na wygenerowanych propozycjach, czy istotnie żadne zadanie nie rozpoczyna się przed zakończeniem swoich poprzedników i czy żadnej osobie nie przypisano dwóch zadań o nakładających się przedziałach. Deklaracja dotrzymania ograniczenia jest bowiem elementem wyjaśnienia, a nie dowodem jego spełnienia.
 
 \section{Ocena estymacji kosztów}
 
@@ -375,14 +472,19 @@ Wyniki testów powinny zawierać liczbę przypadków wykonanych, zakończonych p
 
 Dla eksperymentów porównawczych trzeba podać dane wejściowe, metodę bazową, miary, liczbę powtórzeń i rozrzut wyników. Należy uwzględnić także scenariusze, w których PlanWise uzyskał wynik gorszy lub nie przygotował poprawnej rekomendacji.
 
+% WYKONANE:
+% - Raport testów automatycznych (sekcja "Wyniki wykonania zestawu testów").
+% - Ocena modelu predykcji opóźnień na danych zewnętrznych
+%   (wyniki w rozdziale 6, odniesienie do kryteriów w tym rozdziale).
+% - Pomocnicze studium czasu obsługi zgłoszenia.
+%
 % DO UZUPEŁNIENIA PO WYKONANIU:
-% 1. Raport testów automatycznych.
-% 2. Wyniki scenariuszy funkcjonalnych i kontroli dostępu.
-% 3. Porównanie heurystyki ryzyka z metodą bazową.
-% 3a. Weryfikacja mechanizmu rejestrowania danych uczących
-%     oraz charakterystyka zgromadzonego zbioru.
-% 4. Analiza wrażliwości rankingu.
-% 5. Porównanie metod przydziału.
+% 1. Wyniki scenariuszy funkcjonalnych i kontroli dostępu.
+% 2. Weryfikacja mechanizmu rejestrowania danych uczących
+%    oraz charakterystyka zgromadzonego zbioru.
+% 3. Porównanie modelu uczonego z heurystyką na danych wdrożenia.
+% 4. Analiza wrażliwości rankingu i porównanie obu metod priorytetyzacji.
+% 5. Porównanie metod przydziału względem długości projektu.
 % 6. Spójność, zmienność i błędy estymacji kosztów.
 % 7. Pomiary czasu odpowiedzi i analizy niepowodzeń.
 
@@ -392,4 +494,6 @@ W analizach historycznych należy uwzględnić zmiany terminów i zakresu oraz w
 
 Wspomaganie decyzji można dodatkowo ocenić w badaniu użytkowników, mierząc czas wykonania zadania decyzyjnego, liczbę przeoczonych problemów i odsetek przyjętych rekomendacji. Sama deklaracja zadowolenia nie zastępuje jednak oceny poprawności decyzji.
 
-Na obecnym etapie analiza kodu pozwala wskazać zakres implementacji i jej ograniczenia, lecz nie potwierdza przewagi systemu nad metodami bazowymi. Weryfikacja tezy pracy wymaga uzupełnienia rozdziału o rzeczywiste wyniki opisanych badań i sformułowania wniosków odpowiadających uzyskanym danym.
+Podsumowując stan weryfikacji: dla predykcji opóźnień dysponujemy wynikiem pomiaru wykazującym przewagę nad metodą odniesienia, przy jednoczesnym braku porównania z heurystyką stosowaną w systemie. Dla pozostałych mechanizmów rozdział przedstawia metodykę bez wyników. Analiza kodu i wykonany zestaw testów pozwalają wskazać zakres implementacji oraz jej ograniczenia, lecz nie stanowią potwierdzenia przewagi systemu nad metodami bazowymi w pozostałych obszarach.
+
+Weryfikacja tezy pracy wymaga zatem uzupełnienia rozdziału o wyniki pozostałych badań. Osiągnięty dotąd rezultat pozwala natomiast zawęzić pytanie: nie chodzi już o to, czy model uczony jest w tej dziedzinie w ogóle możliwy do zbudowania, lecz o to, czy w warunkach konkretnego zespołu przewyższa dostrojoną heurystykę na tyle, by uzasadnić jego użycie.

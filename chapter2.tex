@@ -207,7 +207,17 @@ gdzie \(T\) oznacza czas zakończenia, \(O\) --- miarę opóźnień, a \(B\) ---
 
 Praktycznym podejściem jest algorytm zachłanny: zadania rozpatruje się w określonej kolejności, a dla każdego wybiera wykonawcę najlepszego według lokalnej reguły. Takie rozwiązanie może być szybkie i łatwe do wyjaśnienia, ale lokalnie korzystny wybór nie gwarantuje najlepszego przydziału całego zbioru.
 
-Przy opisie PlanWise należy zatem odróżnić wyznaczanie harmonogramu od równoważenia przydziału pracy. Zmiana wykonawców bez przeliczenia terminów nie stanowi dowodu skrócenia projektu.
+Istotne jest przy tym rozpoznanie, jaką wielkość algorytm zachłanny w istocie optymalizuje. Reguła wybierająca osobę najmniej obciążoną minimalizuje nierównomierność obciążenia, która jest wielkością zastępczą wobec celu rzeczywistego, czyli terminu zakończenia przedsięwzięcia. Obie wielkości przestają być zgodne, gdy w projekcie występują zależności: przydzielenie zadania leżącego na ścieżce krytycznej osobie już zajętej wydłuża projekt, mimo że może poprawiać równomierność rozkładu prac.
+
+\subsection*{Harmonogramowanie z ograniczonymi zasobami}
+
+Pełniejsze sformułowanie problemu znane jest jako harmonogramowanie projektu z ograniczonymi zasobami (ang.~\textit{resource-constrained project scheduling problem}). Obok kolejności wynikającej z zależności uwzględnia się w nim ograniczoną dostępność zasobów wykonujących zadania. Problem ten jest NP-trudny, wobec czego dla instancji większych nie należy oczekiwać rozwiązania dokładnego w akceptowalnym czasie.
+
+Wygodnym sposobem zapisu takiego zadania jest programowanie z ograniczeniami, w którym zadania reprezentuje się przedziałami czasowymi o określonym czasie trwania. Dwa podstawowe rodzaje ograniczeń to wymóg nienakładania się przedziałów przypisanych temu samemu zasobowi oraz wymóg następstwa, zgodnie z którym przedział nie może rozpocząć się przed zakończeniem przedziału poprzednika. Przypisanie zasobu modeluje się przedziałami opcjonalnymi, których obecność w rozwiązaniu zależy od zmiennej decyzyjnej.
+
+Solver rozwiązujący takie zadanie działa zwykle w ramach zadanego budżetu czasu i może zakończyć pracę w jednym z trzech stanów: z rozwiązaniem dowiedzionym jako optymalne, z rozwiązaniem dopuszczalnym, którego optymalności nie wykazano, lub bez rozwiązania. Rozróżnienie tych przypadków ma znaczenie praktyczne, ponieważ dwa pierwsze prowadzą do wyniku użytecznego, lecz uzasadniają różny stopień zaufania, a trzeci wymaga przewidzenia metody zastępczej.
+
+Przy opisie PlanWise należy zatem odróżnić wyznaczanie harmonogramu od równoważenia przydziału pracy. Zmiana wykonawców bez przeliczenia terminów nie stanowi dowodu skrócenia projektu, a porównanie dwóch metod przydziału jest wiarygodne tylko wtedy, gdy obie oceniono względem tej samej wielkości i przy tych samych ograniczeniach.
 
 
 \section{Uczenie maszynowe w analizie danych projektowych}
@@ -263,7 +273,32 @@ Dla prognozy liczbowej przykładową miarą jest średni błąd bezwzględny:
 \end{equation}
 gdzie \(y_i\) oznacza wartość rzeczywistą, \(\hat{y}_i\) --- wartość przewidywaną, a \(n\) --- liczbę ocenianych obserwacji.
 
-Ocena powinna obejmować porównanie z prostą metodą bazową. Złożoność modelu nie stanowi samodzielnego uzasadnienia jego zastosowania. W PlanWise takim punktem odniesienia może być istniejąca punktowa ocena ryzyka.
+\subsection*{Jakość uporządkowania a kalibracja}
+
+Dla klasyfikatora zwracającego wartość ciągłą należy odróżnić dwie różne własności, które bywają mylone. Pierwszą jest zdolność uporządkowania obserwacji, czyli to, czy przypadki zakończone zdarzeniem otrzymują wyższe oceny niż pozostałe. Drugą jest kalibracja, czyli zgodność zwracanych wartości z rzeczywistą częstością zdarzeń.
+
+Miarą uporządkowania jest pole pod krzywą charakterystyki operacyjnej odbiornika, oznaczane jako ROC AUC. Odpowiada ono prawdopodobieństwu, że losowo wybrana obserwacja pozytywna otrzyma wyższą ocenę niż losowo wybrana obserwacja negatywna. Wartość 0,5 oznacza brak zdolności różnicującej, a 1,0 uporządkowanie bezbłędne. Miara ta jest niewrażliwa na monotoniczne przekształcenie wyniku, wobec czego opisuje wyłącznie kolejność, a nie poprawność samych wartości.
+
+Kalibrację można ocenić miarą Briera, czyli średnim kwadratem różnicy między prognozowanym prawdopodobieństwem a wynikiem rzeczywistym:
+
+\begin{equation}
+    BS = \frac{1}{n}\sum_{i=1}^{n}\left(\hat{p}_i - y_i\right)^2,
+    \label{eq:brier}
+\end{equation}
+
+gdzie \(\hat{p}_i\) oznacza prognozowane prawdopodobieństwo, a \(y_i \in \{0,1\}\) wynik obserwowany. Właściwym punktem odniesienia jest tu model stały, zwracający zawsze udział klasy pozytywnej. Model o dobrym uporządkowaniu może wypaść gorzej od takiego odniesienia pod względem miary Briera, co oznacza, że jego wskazania są użyteczne jako ranking, lecz nie powinny być prezentowane jako wartości procentowe.
+
+Rozbieżność tę usuwa się osobnym krokiem kalibracji, wykonywanym po dopasowaniu modelu. Metoda Platta polega na dopasowaniu funkcji logistycznej do wartości funkcji decyzyjnej modelu, natomiast kalibracja izotoniczna dopasowuje dowolną funkcję niemalejącą. Druga z nich jest bardziej elastyczna, lecz przy mniejszych zbiorach łatwiej ulega przeuczeniu.
+
+Osobnym zagadnieniem jest postać cech. Zależność monotoniczna, lecz silnie nieliniowa, bywa dla modelu liniowego nieosiągalna w wartościach surowych, a staje się dostępna po przekształceniu. Dla wielkości zliczających o rozkładach skośnych typowym zabiegiem jest przekształcenie \(\log(1+x)\), zachowujące porządek i określone dla wartości zerowej. Dobór postaci cech może wpływać na wynik silniej niż wybór rodziny modelu, co należy sprawdzać pomiarem, a nie zakładać.
+
+\subsection*{Przenoszalność modelu między organizacjami}
+
+Gdy model ma działać na projektach innych niż te, na których go uczono, ocena musi tę sytuację odwzorować. Właściwym postępowaniem jest podział danych grupowany według projektu, w którym wszystkie obserwacje danego przedsięwzięcia trafiają w całości do jednej strony podziału. Podział ignorujący tę strukturę pozwala modelowi zapamiętać charakterystyczny dla projektu udział zdarzeń i prowadzi do oceny zawyżonej.
+
+Z tego samego powodu identyfikator projektu nie powinien pełnić funkcji cechy. Przenoszalności sprzyjają natomiast cechy strukturalne, opisujące wielkości policzalne i porównywalne między organizacjami, takie jak liczba zależności czy rozmiar zadania. Cechy oparte na słownictwie, na przykład nazwy poziomów priorytetu, bywają w różnych organizacjach definiowane odmiennie, przez co model napotyka w nowym projekcie kategorie nieobecne podczas uczenia.
+
+Ocena powinna obejmować porównanie z prostą metodą bazową. Złożoność modelu nie stanowi samodzielnego uzasadnienia jego zastosowania. W PlanWise takim punktem odniesienia jest istniejąca punktowa ocena ryzyka.
 
 
 \section{Duże modele językowe w estymacji kosztów}

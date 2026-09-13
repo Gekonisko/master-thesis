@@ -18,16 +18,16 @@ Zakres realizacji poszczególnych obszarów można podsumować następująco:
 \begin{enumerate}
     \item Organizacja i monitorowanie pracy obejmują projekty, zadania, sprinty, tablicę, harmonogram oraz wybrane zestawienia postępu. Nie wszystkie elementy pełnego zarządzania przepływem zostały zaimplementowane; przykładem są konfigurowalne limity WIP.
 
-    \item Analiza ryzyka wykorzystuje deterministyczną punktację, a prognoza sprintu uproszczoną projekcję stałego tempa. Heurystykę wydzielono jako nazwany model bazowy za wymienną granicą programistyczną, a system rejestruje wektory cech i wyniki realizacji na potrzeby przyszłego uczenia. Nie zrealizowano natomiast dopasowania i walidacji modelu uczenia maszynowego, ponieważ wymaga to zbioru obserwacji narastającego w czasie eksploatacji systemu.
+    \item Analiza ryzyka jest dostępna w dwóch wariantach: deterministycznej punktacji oraz modelu regresji logistycznej dopasowanego do zewnętrznego zbioru projektów zwinnych. Obie metody działają za wspólną granicą programistyczną i pozostają jednocześnie uruchamialne. System rejestruje ponadto wektory cech i wyniki realizacji, co docelowo umożliwi rekalibrację modelu na danych wdrożenia. Prognoza sprintu pozostaje projekcją opartą na tempie zespołu i nie pochodzi z modelu uczonego.
 
-    \item Priorytetyzacja backlogu wykorzystuje ważoną ocenę wartości biznesowej, zależności, złożoności i ryzyka. Wynik zawiera proponowaną kolejność i uzasadnienia.
+    \item Priorytetyzacja backlogu wykorzystuje ważoną ocenę wartości biznesowej, zależności, złożoności i ryzyka, a alternatywnie porządkowanie z udziałem modelu językowego. Wynik zawiera proponowaną kolejność i uzasadnienia.
 
-    \item Harmonogramowanie obejmuje obliczenia oparte na zależnościach, a mechanizm przydziałów przygotowuje propozycje wykonawców dla nieprzypisanych zadań. Nie jest to pełna optymalizacja terminów z uwzględnieniem kalendarzy wszystkich zasobów.
+    \item Harmonogramowanie obejmuje obliczenia oparte na zależnościach, a przydział zadań realizuje solver programowania z ograniczeniami, minimalizujący długość projektu przy zachowaniu kolejności zależności i rozłączności prac jednej osoby. Nie uwzględniono natomiast kalendarzy nieobecności, a jeden punkt nadal odpowiada jednemu dniu pracy przy pełnej dostępności.
 
     \item Estymacja kosztów korzysta z rzeczywistej integracji z modelem językowym i danych zespołu. Przetwarzanie odpowiedzi wymaga jednak rozbudowy kontroli semantycznej i rachunkowej, w tym zapewnienia kompletności wymaganych wariantów kosztowych.
 \end{enumerate}
 
-Zrealizowano zatem aplikację integrującą funkcje operacyjne i analityczne, natomiast część pierwotnych założeń pozostaje spełniona w ograniczonym zakresie. Dotyczy to przede wszystkim predykcji opartej na uczeniu maszynowym i optymalizacji uwzględniającej pełne ograniczenia czasowe oraz zasobowe.
+Zrealizowano zatem aplikację integrującą funkcje operacyjne i analityczne, przy czym część pierwotnych założeń pozostaje spełniona w ograniczonym zakresie. Nie dotyczy to już samego istnienia modelu uczonego ani optymalizacji uwzględniającej ograniczenia zasobowe, lecz wykazania ich przewagi w warunkach konkretnego wdrożenia oraz pełnego odwzorowania kalendarza pracy.
 
 \section{Najważniejsze rezultaty projektowe i implementacyjne}
 
@@ -41,7 +41,13 @@ Istotnym elementem interfejsu jest rozdzielenie propozycji od jej zastosowania. 
 
 Zastosowanie jawnych funkcji heurystycznych umożliwia prześledzenie sposobu wyznaczania ocen. Ma to znaczenie podczas weryfikacji obliczeń i projektowania eksperymentów. Ujawnia także zależność wyniku od przyjętych wag, progów i wartości zastępczych.
 
-Odrębnym rezultatem jest przygotowanie systemu na zmianę metody wyznaczania prognozy. Obejmuje ono jednolitą granicę modelu, zastosowaną zarówno dla predykcji ryzyka, jak i dla estymacji kosztów, zapisywanie nazwy modelu wraz z każdym uruchomieniem analizy oraz rejestrowanie danych uczących. Ostatni z tych elementów ma charakter nieodwracalny w czasie: stan projektu z danego dnia nie może zostać odtworzony później, więc uruchomienie zapisu przed powstaniem modelu jest warunkiem, a nie następstwem dalszych prac nad predykcją.
+Odrębnym rezultatem jest ujednolicenie sposobu, w jaki system traktuje metody wyznaczania wyników. Wszystkie cztery mechanizmy analityczne umieszczono za granicami programistycznymi o tym samym kształcie, a za każdą z nich zarejestrowano co najmniej dwie implementacje. Wraz z każdym uruchomieniem zapisywana jest nazwa metody, która je wykonała, oraz przyjęte przez nią założenia.
+
+Konstrukcja ta nie jest wyłącznie zabiegiem porządkującym kod. Umożliwia porównywanie metod zamiast zakładania przewagi którejkolwiek z nich, a w przypadku harmonogramowania pozwala obsłużyć niepowodzenie solvera jako przewidziany przypadek, którego skutkiem jest wynik gorszy, lecz jawnie oznaczony, a nie błąd analizy.
+
+Dodatkowym rezultatem jest uruchomienie rejestrowania danych uczących. Element ten ma charakter nieodwracalny w czasie: stan projektu z danego dnia nie może zostać odtworzony później, więc rozpoczęcie zapisu jest warunkiem, a nie następstwem dalszych prac nad predykcją opartą na danych własnych.
+
+W obszarze modelowania rezultatem jest wytrenowany i wdrożony model predykcji opóźnienia zadania wraz z udokumentowaną procedurą jego przygotowania, obejmującą dobór zbioru danych, definicję etykiety, usunięcie wykrytych źródeł przecieku informacji, wybór postaci cech oraz kalibrację. Wynik pomiaru przedstawiono bez upiększeń: przewaga nad metodą odniesienia jest rzeczywista, lecz umiarkowana, co bezpośrednio uzasadniło pozostawienie heurystyki jako metody domyślnej.
 
 Powyższe rezultaty dotyczą opracowanych mechanizmów i ich organizacji. Nie stanowią jeszcze potwierdzenia zmniejszenia opóźnień, kosztów lub czasu pracy kierownika projektu.
 
@@ -53,7 +59,13 @@ W części serwerowej wkład obejmuje implementację obsługi projektów, zespo�
 
 W obszarze analitycznym opracowano konfigurację czynników ryzyka, funkcję priorytetyzacji i heurystykę wyboru wykonawców. Przygotowano również kontekst estymacji kosztów oparty na danych backlogu i zagregowanych stawkach zespołu oraz integrację odpowiedzi modelu z aplikacją.
 
-W zakresie prac nad modelami wkład obejmuje zaprojektowanie granicy oddzielającej sposób wyznaczania prognozy od pozostałych odpowiedzialności modułu, sformułowanie zdarzenia docelowego i sposobu jego etykietowania, dobór rejestrowanych cech oraz opracowanie mechanizmu gromadzenia i etykietowania obserwacji wraz z obsługą przypadków cenzurowanych. W odniesieniu do modelu językowego wkład dotyczy sformułowania zadania, ograniczenia odpowiedzi do ról i stawek pochodzących z danych projektu, wymuszenia ustrukturyzowanej postaci wyniku oraz rozróżnienia niepowodzeń wymagających ponowienia od tych, dla których jest ono bezcelowe.
+W zakresie prac nad modelami wkład obejmuje zaprojektowanie jednolitej granicy oddzielającej sposób wyznaczania wyniku od pozostałych odpowiedzialności modułu i zastosowanie jej we wszystkich czterech mechanizmach, sformułowanie zdarzenia docelowego i sposobu jego etykietowania, dobór rejestrowanych cech oraz opracowanie mechanizmu gromadzenia i etykietowania obserwacji wraz z obsługą przypadków cenzurowanych.
+
+Wkład w części dotyczącej modelu uczonego obejmuje ponadto dobór zbioru danych wraz z rozpoznaniem przyczyn nieprzydatności zbioru odrzuconego, przedefiniowanie zobowiązania terminowego na datę zakończenia sprintu, wykrycie i usunięcie dwóch źródeł przecieku informacji, zaprojektowanie dwóch protokołów oceny, przeprowadzenie porównania rodzin modeli i postaci cech, ograniczenie zestawu cech do wielkości możliwych do obliczenia podczas eksploatacji oraz kalibrację wyniku. Osobnym elementem jest zabezpieczenie zgodności dwóch implementacji tych samych obliczeń zestawem przypadków wzorcowych.
+
+W obszarze harmonogramowania wkład dotyczy sformułowania przydziału zadań jako problemu harmonogramowania z ograniczonymi zasobami, doboru ograniczeń i postaci funkcji celu oraz zaprojektowania sposobu obsługi przypadków, w których solver nie zwraca rozwiązania.
+
+W odniesieniu do modeli językowych wkład dotyczy sformułowania zadania, ograniczenia odpowiedzi do ról i stawek pochodzących z danych projektu, wymuszenia ustrukturyzowanej postaci wyniku, rozróżnienia niepowodzeń wymagających ponowienia od tych, dla których jest ono bezcelowe, oraz rozpoznania, że priorytetyzacja backlogu jest problemem pozbawionym etykiety, a przez to właściwym raczej dla modelu językowego niż dla modelu uczonego.
 
 Wykorzystane podstawy, takie jak metoda ścieżki krytycznej, suma ważona czy podejście zachłanne, są znanymi metodami. Wkład pracy polega na ich doborze, dostosowaniu i integracji z modelem PlanWise, a nie na opracowaniu nowej klasy algorytmów.
 
@@ -65,9 +77,13 @@ Teza pracy dotyczy możliwości poprawy wspomagania decyzji przez połączenie d
 
 Opracowana implementacja pokazuje techniczną możliwość przeprowadzenia takiej integracji. System przygotowuje oceny i propozycje na podstawie danych wykorzystywanych podczas codziennej organizacji pracy, a użytkownik może odnieść wynik do konkretnych zadań i członków zespołu.
 
-Nie jest to jednak wystarczające do potwierdzenia poprawy jakości decyzji. Potrzebne są wyniki dotyczące trafności wskazań ryzyka, użyteczności rankingu, jakości przydziałów i błędów estymacji kosztów. Jeżeli teza obejmuje również usprawnienie pracy użytkownika, konieczne jest zbadanie tego efektu w zadaniach decyzyjnych.
+Jeden element tezy uzyskał wsparcie empiryczne. Dla predykcji opóźnień wykazano pomiarem przewagę modelu uczonego nad metodą odniesienia w protokole odpowiadającym warunkom rzeczywistego użycia, to znaczy na projektach nieobecnych w zbiorze uczącym. Przewaga ta jest jednak umiarkowana, a uzyskane wartości uprawniają do porządkowania uwagi kierownika, nie zaś do orzekania o losie pojedynczego zadania.
 
-Na podstawie samej analizy implementacji teza nie może zostać uznana za empirycznie potwierdzoną. Brak wyników nie oznacza jej odrzucenia, lecz ogranicza zakres możliwego wnioskowania.
+Wyniku tego nie należy przy tym utożsamiać z weryfikacją tezy w jej pełnym brzmieniu. Metodą odniesienia był model stały, a nie heurystyka stosowana w systemie, wobec czego wykazano, że w danych istnieje sygnał możliwy do wykorzystania, a nie że metoda uczona przewyższa dostrojoną regułę ekspercką. Porównanie tych dwóch metod pozostaje otwarte i wymaga danych gromadzonych przez wdrożenie.
+
+Dla pozostałych mechanizmów brakuje wyników dotyczących użyteczności rankingu, jakości przydziałów i błędów estymacji kosztów. Jeżeli teza obejmuje również usprawnienie pracy użytkownika, konieczne jest zbadanie tego efektu w zadaniach decyzyjnych.
+
+Teza nie może zatem zostać uznana za potwierdzoną w całości. Nie została też odrzucona: uzyskano cząstkowy wynik pozytywny oraz wykazano wykonalność integracji, natomiast zakres możliwego wnioskowania pozostaje ograniczony brakiem pozostałych pomiarów.
 
 % DO AKTUALIZACJI PO UZUPEŁNIENIU ROZDZIAŁU 7:
 % Wskazać, które wyniki wspierają tezę, w jakich warunkach
@@ -76,15 +92,17 @@ Na podstawie samej analizy implementacji teza nie może zostać uznana za empiry
 
 \section{Ograniczenia opracowanego rozwiązania}
 
-Najważniejszym ograniczeniem pozostaje brak zbioru obserwacji o liczebności wystarczającej do wytrenowania i oceny modelu predykcyjnego. Mechanizm gromadzenia takich danych został zaimplementowany i działa przy każdym uruchomieniu analizy ryzyka, jednak zbiór narasta dopiero wraz z eksploatacją systemu. Ograniczenia tego nie da się usunąć zmianą w kodzie: stan wiedzy dostępny w chwili wcześniejszych decyzji nie może zostać odtworzony wstecz, a jedynie zapisany na bieżąco.
+Najważniejszym ograniczeniem pozostaje pochodzenie danych uczących. Model dopasowano do projektów otwartego oprogramowania pochodzących z innych organizacji, które mogą opóźniać się inaczej niż zespoły komercyjne działające pod presją zobowiązań wobec klienta. Prawdopodobieństwa nie zostały skalibrowane na wynikach tego wdrożenia, wobec czego należy je odczytywać jako sposób porządkowania uwagi, a nie jako dosłowne szanse wystąpienia zdarzenia.
 
-W konsekwencji obecna wersja systemu udostępnia prognozy wyznaczane wyłącznie przez model bazowy. Ani jego trafność, ani przewaga jakiegokolwiek modelu uczonego nad nim nie zostały wykazane empirycznie.
+Mechanizm gromadzenia danych własnych został zaimplementowany i działa przy każdym uruchomieniu analizy ryzyka, jednak zbiór narasta dopiero wraz z eksploatacją systemu. Ograniczenia tego nie da się usunąć zmianą w kodzie: stan wiedzy dostępny w chwili wcześniejszych decyzji nie może zostać odtworzony wstecz, a jedynie zapisany na bieżąco. W konsekwencji przewaga modelu uczonego nad heurystyką stosowaną w systemie nie została wykazana i to właśnie ta okoliczność, a nie względy techniczne, decyduje o pozostawieniu heurystyki jako metody domyślnej.
 
-Drugim ograniczeniem jest sposób reprezentowania czasu i zasobów. Punkty, godziny, dni kalendarzowe i udział dostępności opisują różne wielkości. Obecne uproszczenia nie zapewniają wszędzie poprawnego powiązania tych jednostek. Dotyczy to zwłaszcza prognozowania wykonania sprintu i przeliczania punktów na czas trwania.
+Ograniczony jest również zakres tego, co model przewiduje. Wyznacza on wyłącznie prawdopodobieństwo opóźnienia zadania, natomiast wielkość opóźnienia oraz prognoza wykonania sprintu pozostają wynikiem przeliczeń heurystycznych, ponieważ wykorzystany zbiór nie zawiera odpowiednich etykiet.
+
+Drugim ograniczeniem jest sposób reprezentowania czasu i zasobów. Punkty, godziny, dni kalendarzowe i udział etatu opisują różne wielkości, a ich powiązanie wymaga jawnego przelicznika. Zagadnienie to rozwiązano dla prognozowania sprintu, wprowadzając wyznaczanie tempa z zakończonych sprintów projektu wraz z jawnym rozróżnieniem tempa zmierzonego od założonego. Nie rozwiązano go natomiast dla czasu trwania zadania, gdzie utrzymano uproszczenie jednego punktu jako jednego dnia pracy przy pełnej dostępności.
 
 Analiza zależności wymaga również pełnej kontroli acykliczności. Przygotowanie danych wykresu mimo występowania cyklu nie jest równoznaczne z wyznaczeniem wykonalnego harmonogramu.
 
-Heurystyka przydziałów wykorzystuje tekstowe dopasowanie kompetencji i stałą pojemność. Nie uwzględnia poziomu umiejętności, urlopów, zmienności dostępności ani pełnej konkurencji zadań o czas wykonawcy. Nie gwarantuje optymalności.
+Przydział zadań uwzględnia obecnie kolejność zależności, rozłączność prac jednej osoby i skalowanie czasu trwania dostępnością, nie modeluje natomiast kalendarzy nieobecności ani zmienności dostępności w czasie. Dopasowanie kompetencji pozostaje porównaniem tekstowym z tytułem zadania i nie uwzględnia poziomu umiejętności, przez co pełni w funkcji celu wyłącznie rolę rozstrzygania remisów. Optymalność jest gwarantowana jedynie względem zadeklarowanej funkcji celu i tylko wtedy, gdy solver zdąży jej dowieść w wyznaczonym czasie.
 
 Estymacja kosztów jest ograniczona zakresem przekazywanego kontekstu i brakiem danych o rzeczywistym nakładzie pozostałym do wykonania. Poprawność struktury odpowiedzi modelu nie gwarantuje poprawności sum, kompletności scenariuszy ani trafności uzasadnienia.
 
@@ -104,21 +122,25 @@ Należy również wprowadzić kontrolę cykli zależności, pełniejszą walidac
 
 \subsection{Gromadzenie historii i rozwój predykcji}
 
-Rejestrowanie migawek cech i wyników realizacji zostało uruchomione, dlatego dalsze prace w tym obszarze dotyczą wykorzystania gromadzonych danych, a nie samego ich pozyskiwania. Pierwszym krokiem powinno być ustalenie liczebności zbioru pozwalającej na sensowne dopasowanie modelu oraz scharakteryzowanie rozkładu etykiet, w tym udziału obserwacji cenzurowanych.
+Model predykcji opóźnień został wytrenowany i wdrożony, dlatego dalsze prace dotyczą już nie jego zbudowania, lecz uzasadnienia jego użycia w konkretnym wdrożeniu. Krokiem rozstrzygającym jest rekalibracja na danych gromadzonych przez system oraz porównanie z heurystyką na tych samych obserwacjach testowych, z podziałem uwzględniającym zarówno porządek czasowy, jak i przynależność obserwacji do zadań. Dopiero wynik takiego porównania powinien decydować o zmianie metody domyślnej.
 
-Na tej podstawie można opracować model przewidujący opóźnienie lub pozostały czas realizacji. Jego ocena powinna wykorzystywać podział uwzględniający zarówno porządek czasowy, jak i przynależność obserwacji do zadań, oraz porównanie z heurystyką bazową na tych samych obserwacjach testowych.
+Poprzedzać go musi scharakteryzowanie zgromadzonego zbioru, obejmujące jego liczebność, rozkład etykiet oraz udział obserwacji cenzurowanych. Wielkości tych nie da się przewidzieć przed zebraniem danych, a mogą one wymusić zmianę doboru metryk lub sposobu uczenia.
 
-Rozszerzenia wymaga również sam zakres rejestrowanych danych. Obecny zapis obejmuje stan zadania w chwili prognozy, nie zawiera natomiast historii zmian terminów, oszacowań i przypisań pomiędzy kolejnymi uruchomieniami analizy. Uzupełnienie go pozwoliłoby rozpoznać zadania, których parametry były wielokrotnie korygowane, co samo w sobie może stanowić sygnał zagrożenia.
+Rozszerzenia wymaga również sam zakres rejestrowanych danych. Obecny zapis obejmuje stan zadania w chwili prognozy, nie zawiera natomiast historii zmian terminów, oszacowań i przypisań pomiędzy kolejnymi uruchomieniami analizy. Uzupełnienie go pozwoliłoby rozpoznać zadania, których parametry były wielokrotnie korygowane, co samo w sobie może stanowić sygnał zagrożenia. Odrębną luką jest brak historii przepustowości zespołu, w której prawdopodobnie znajduje się istotna część sygnału nieuchwyconego przez obecny zestaw cech.
 
-Przed prezentowaniem wyników jako prawdopodobieństw konieczne będzie sprawdzenie kalibracji. Dotyczy to również obecnej heurystyki, której wynik zapisywany jest w polach o nazwach odwołujących się do prawdopodobieństwa. Model powinien być także monitorowany pod kątem zmian charakteru projektów i pogorszenia jakości prognoz.
+Kalibrację zastosowano dla modelu uczonego, natomiast nie objęto nią heurystyki, której wynik zapisywany jest w polach o nazwach odwołujących się do prawdopodobieństwa. Uporządkowanie tego nazewnictwa lub przeprowadzenie kalibracji pozostaje do wykonania. Niezależnie od wybranej metody konieczne jest monitorowanie jakości prognoz w czasie, ponieważ w danych zaobserwowano rzeczywistą zmianę udziału opóźnień pomiędzy okresami.
 
 \subsection{Rozbudowa harmonogramowania i przydziałów}
 
-Rozwój harmonogramowania powinien objąć strukturalny opis wymagań kompetencyjnych zadań oraz kalendarze członków zespołu. Pozwoli to zastąpić dopasowanie fragmentów tytułu jawnymi warunkami wyboru wykonawcy.
+Zadanie optymalizacyjne z ograniczeniami zasobowymi i czasowymi zostało sformułowane i wdrożone, a heurystyka zachłanna pozostała szybką metodą bazową i rozwiązaniem zastępczym. Dalszy rozwój dotyczy zatem przede wszystkim wierności modelu wobec rzeczywistości.
 
-Po ujednoliceniu jednostek możliwe będzie sformułowanie zadania optymalizacyjnego z ograniczeniami zasobowymi i czasowymi. Funkcja celu może uwzględniać długość projektu, przekroczenia terminów, nierównomierność obciążenia i koszt zmian istniejącego planu.
+Pierwszym kierunkiem jest strukturalny opis wymagań kompetencyjnych zadań, pozwalający zastąpić dopasowanie fragmentów tytułu jawnymi warunkami wyboru wykonawcy. Obecna postać tego składnika jest na tyle zawodna, że w funkcji celu przypisano mu wyłącznie rolę rozstrzygania remisów; wprowadzenie opisu strukturalnego pozwoliłoby podnieść jego znaczenie.
 
-Heurystyka zachłanna może pozostać szybką metodą bazową. Bardziej złożone rozwiązania powinny być oceniane pod względem jakości i czasu obliczeń dla tych samych scenariuszy.
+Drugim jest wprowadzenie kalendarzy członków zespołu, obejmujących nieobecności i zmienną dostępność w czasie. Obecnie każdy dzień traktowany jest jako roboczy, a dostępność jako wielkość stała, co przy dłuższym horyzoncie planowania prowadzi do terminów zbyt optymistycznych.
+
+Trzecim jest zmierzenie praktycznej granicy stosowalności solvera. Należy ustalić, przy jakiej wielkości projektu rośnie udział uruchomień kończących się wynikiem metody zastępczej, a następnie rozważyć zwiększenie budżetu czasu, dekompozycję zadania lub rozwiązanie przyrostowe.
+
+Rozważenia wymaga również sposób łączenia składników funkcji celu. Obecne wagi stałe dopuszczają teoretycznie wymianę dnia długości projektu na dostatecznie dużą oszczędność na przekroczeniach terminów; rozwiązanie leksykograficzne usunęłoby tę możliwość kosztem większej złożoności obliczeń.
 
 \subsection{Zwiększenie wiarygodności estymacji kosztów}
 

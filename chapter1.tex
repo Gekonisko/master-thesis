@@ -24,7 +24,7 @@ Cel inżynierski obejmuje opracowanie aplikacji internetowej z warstwą serwerow
 
 W obszarze wspomagania decyzji celem jest opracowanie oceny ryzyka opóźnień, rekomendacji kolejności realizacji zadań oraz propozycji przydziału pracy uwzględniających charakterystykę zespołu. Uzupełnieniem jest estymacja kosztów z wykorzystaniem dużego modelu językowego, obejmująca wariant optymistyczny, realistyczny i pesymistyczny oraz uzasadnienie przyjętych założeń i rekomendacje redukcji kosztów.
 
-Cel badawczy polega na ocenie jakości wyników dostarczanych przez wybrane mechanizmy oraz porównaniu ich z określonymi metodami bazowymi. W odniesieniu do predykcji opóźnień zakłada się porównanie modelu uczenia maszynowego z istniejącą oceną heurystyczną. Dla pozostałych mechanizmów ocena obejmuje zgodność rekomendacji z kryteriami, jakość przydziału pracy oraz poprawność i powtarzalność estymacji kosztów.
+Cel badawczy polega na ocenie jakości wyników dostarczanych przez wybrane mechanizmy oraz porównaniu ich z określonymi metodami bazowymi. W odniesieniu do predykcji opóźnień obejmuje on dopasowanie modelu uczenia maszynowego, zmierzenie jego jakości względem metody odniesienia w warunkach odpowiadających rzeczywistemu użyciu oraz określenie, jakie dane są potrzebne, aby porównać go z istniejącą oceną heurystyczną. Dla pozostałych mechanizmów ocena obejmuje zgodność rekomendacji z kryteriami, jakość przydziału pracy mierzoną względem zadeklarowanej funkcji celu oraz poprawność i powtarzalność estymacji kosztów.
 
 Istotnym założeniem jest przedstawianie użytkownikowi przesłanek stojących za rekomendacją. Kierownik projektu powinien mieć możliwość przeanalizowania wyniku, poznania jego ograniczeń oraz podjęcia decyzji o zastosowaniu proponowanych zmian.
 
@@ -36,9 +36,13 @@ Część organizacyjna systemu obejmuje obsługę tożsamości i dostępu, zarz�
 
 Architektura backendu opiera się na modularnym monolicie. Wyróżniono moduły tożsamości i dostępu, zarządzania projektami i zespołami, realizacji zadań, harmonogramowania, oceny ryzyka, priorytetyzacji backlogu, estymacji kosztów oraz powiadomień. Zakres opracowania obejmuje podział odpowiedzialności pomiędzy modułami, organizację warstw, komunikację poprzez wspólne kontrakty, wykorzystanie zdarzeń domenowych i przetwarzanie operacji analitycznych w tle. Dane przechowywane są w relacyjnej bazie PostgreSQL.
 
-Część analityczna obejmuje ocenę ryzyka na podstawie parametrów zadań oraz prognozowanie realizacji sprintu. Istniejące rozwiązanie heurystyczne stanowi punkt odniesienia dla planowanego modelu uczenia maszynowego.
+Część analityczna obejmuje ocenę ryzyka na podstawie parametrów zadań oraz prognozowanie realizacji sprintu. Rozwiązanie heurystyczne stanowi metodę bazową i punkt odniesienia dla modelu uczenia maszynowego, przy czym obie metody pozostają dostępne równolegle.
 
-Zakres prac nad modelami obejmuje trzy elementy zrealizowane w systemie: wydzielenie heurystyki jako nazwanego modelu bazowego za wymienną granicą programistyczną, określenie zdarzenia docelowego wraz ze sposobem jego etykietowania oraz uruchomienie rejestrowania danych uczących, obejmującego cechy zadania z chwili prognozy i późniejszy wynik jego realizacji. Poza zakresem pozostaje dopasowanie modelu uczonego do danych i jego walidacja, ponieważ wymagają one zbioru obserwacji narastającego wraz z eksploatacją systemu.
+Zakres prac nad modelami obejmuje wydzielenie heurystyki jako nazwanego modelu bazowego za wymienną granicą programistyczną, określenie zdarzenia docelowego wraz ze sposobem jego etykietowania, uruchomienie rejestrowania danych uczących oraz dopasowanie i wdrożenie modelu predykcji opóźnień wraz z jego oceną. Ponieważ dane gromadzone przez sam system narastają dopiero wraz z jego eksploatacją, model dopasowano do publicznego zbioru projektów prowadzonych w metodyce zwinnej.
+
+Poza zakresem pozostaje wykazanie przewagi modelu uczonego nad heurystyką w warunkach konkretnego wdrożenia, ponieważ wymaga to danych o historii dłuższej niż czas realizacji pracy. Z tego powodu obie metody utrzymano w stanie jednocześnie uruchamialnym, a heurystyka pozostała metodą domyślną.
+
+Zakres obejmuje ponadto sformułowanie przydziału zadań jako zadania optymalizacji z ograniczeniami zasobowymi oraz wdrożenie rozwiązującego je solvera obok dotychczasowej heurystyki zachłannej, a także przygotowanie alternatywnej priorytetyzacji backlogu z udziałem modelu językowego.
 
 Priorytetyzacja backlogu uwzględnia wartość biznesową, zależności, złożoność i ocenę ryzyka. Harmonogramowanie obejmuje analizę grafu zależności, wyznaczanie terminów i ścieżki krytycznej oraz wspomaganie przydziału nieprzypisanych zadań. W pracy analizowane są również ograniczenia przyjętego modelu czasu, pojemności zespołu i dopasowania kompetencji.
 
@@ -58,13 +62,15 @@ Weryfikacja tezy wymaga porównania metod przy zachowaniu zgodnych danych wejśc
 
 \section{Zastosowane metody badawcze}
 
-Metodyka pracy obejmuje analizę literatury i istniejących rozwiązań, projektowanie artefaktu informatycznego, testowanie oprogramowania oraz eksperymenty porównawcze. Na obecnym etapie przygotowania pracy część eksperymentalna jest planowana; jej ostateczny przebieg zostanie opisany zgodnie z rzeczywiście przeprowadzonymi badaniami.
+Metodyka pracy obejmuje analizę literatury i istniejących rozwiązań, projektowanie artefaktu informatycznego, testowanie oprogramowania oraz eksperymenty porównawcze. Część eksperymentalna została zrealizowana w odniesieniu do predykcji opóźnień; dla pozostałych mechanizmów przedstawiono zaplanowaną metodykę, a miejsca te oznaczono jawnie, aby opis procedury nie był mylony z potwierdzeniem jej wykonania.
 
 Analiza literatury ma służyć uporządkowaniu zagadnień zarządzania projektami, oceny ryzyka, harmonogramowania, uczenia maszynowego i zastosowania modeli językowych. Analiza porównawcza narzędzi ma natomiast umożliwić określenie zakresu funkcji istniejących systemów oraz uzasadnienie decyzji projektowych dotyczących PlanWise.
 
 Część inżynierska wykorzystuje iteracyjne projektowanie i implementację. Obejmuje modelowanie danych i procesów, określanie granic modułów, projektowanie interfejsów oraz rozwijanie funkcji użytkowych i analitycznych. Weryfikacja techniczna uwzględnia testy architektury, testy jednostkowe i integracyjne oraz testy komponentów interfejsu. Osobnej ocenie podlegają scenariusze kontroli dostępu i współpracy pomiędzy częściami systemu.
 
-Badanie predykcji opóźnień opiera się na danych zawierających cechy dostępne w chwili sporządzania prognozy i późniejszy wynik realizacji zadania. Ich gromadzenie zostało w systemie uruchomione, ponieważ zbioru takiego nie da się odtworzyć wstecz z danych opisujących stan bieżący. Podział danych powinien ograniczać przenikanie informacji pomiędzy częścią uczącą i testową, z uwzględnieniem czasu oraz przynależności obserwacji do zadań i projektów. Planowane jest porównanie modelu z heurystyczną oceną ryzyka przy użyciu metryk dopasowanych do postaci problemu. W przypadku klasyfikacji obejmują one między innymi precyzję, czułość i miarę F1. Wynik regułowy nie będzie traktowany jako skalibrowane prawdopodobieństwo bez odrębnej weryfikacji.
+Badanie predykcji opóźnień opiera się na danych zawierających cechy dostępne w chwili sporządzania prognozy i późniejszy wynik realizacji zadania. Ich gromadzenie zostało w systemie uruchomione, ponieważ zbioru takiego nie da się odtworzyć wstecz z danych opisujących stan bieżący. Samo dopasowanie modelu przeprowadzono natomiast na zbiorze zewnętrznym, obejmującym projekty wielu organizacji.
+
+Podział danych ograniczał przenikanie informacji pomiędzy częścią uczącą i testową. Zastosowano dwa protokoły: podział grupowany według projektu, odpowiadający ocenie przedsięwzięć nieznanych modelowi, oraz podział według czasu. Osobno zbadano zawartość danych pod kątem wielkości opisujących przebieg realizacji, które nie mogą pełnić funkcji cech, oraz oszacowań nadanych już po rozpoczęciu sprintu. Planowane jest porównanie modelu z heurystyczną oceną ryzyka przy użyciu metryk dopasowanych do postaci problemu. W przypadku klasyfikacji obejmują one między innymi precyzję, czułość i miarę F1. Wynik regułowy nie będzie traktowany jako skalibrowane prawdopodobieństwo bez odrębnej weryfikacji.
 
 Ocena priorytetyzacji backlogu ma obejmować analizę scenariuszy o różnej wartości biznesowej, złożoności i strukturze zależności. Planowane jest badanie wrażliwości rankingu na zmianę wag oraz porównanie z prostszymi regułami porządkowania zadań. Pozwoli to określić, które kryteria dominują w rekomendacji i jak zmiana danych wpływa na jej stabilność.
 
@@ -86,9 +92,9 @@ Rozdział czwarty opisuje architekturę systemu. Wyjaśnia podział na moduły i
 
 Rozdział piąty przedstawia implementację funkcji zarządzania projektami. Obejmuje obsługę użytkowników, projektów, zespołów, zadań i sprintów, wizualizację postępu oraz mechanizmy współpracy i integracji aplikacji klienckiej z backendem.
 
-Rozdział szósty koncentruje się na mechanizmach wspomagania decyzji. Opisuje ocenę ryzyka, priorytetyzację backlogu, harmonogramowanie, przydział zadań oraz estymację kosztów z wykorzystaniem modelu językowego, wraz z ich założeniami i ograniczeniami. Osobne sekcje poświęcono pracom nad modelami: przygotowaniu wymiennej granicy modelu predykcyjnego wraz z mechanizmem gromadzenia danych uczących oraz sposobowi współpracy z zewnętrznym modelem językowym.
+Rozdział szósty koncentruje się na mechanizmach wspomagania decyzji. Opisuje ocenę ryzyka, priorytetyzację backlogu, harmonogramowanie, przydział zadań oraz estymację kosztów, wraz z ich założeniami i ograniczeniami. Osobne sekcje poświęcono pracom nad modelami: przygotowaniu wymiennych granic modeli wraz z mechanizmem gromadzenia danych uczących, doborowi zbioru danych oraz dopasowaniu, ocenie i wdrożeniu modelu predykcji opóźnień, sformułowaniu przydziału zadań jako problemu optymalizacyjnego, a także sposobowi współpracy z zewnętrznymi modelami językowymi.
 
-Rozdział siódmy obejmuje testowanie i ocenę rozwiązania. Przedstawia metodykę eksperymentów, dane, metryki, wyniki porównań oraz dyskusję dotyczącą weryfikacji tezy i ograniczeń badań.
+Rozdział siódmy obejmuje testowanie i ocenę rozwiązania. Przedstawia wyniki wykonania zestawu testów, metodykę eksperymentów, dane i metryki, odniesienie uzyskanych wyników modelu do przyjętych kryteriów, pomocnicze studium na zbiorze odrzuconym oraz dyskusję dotyczącą weryfikacji tezy i ograniczeń badań.
 
 Rozdział ósmy zawiera podsumowanie realizacji celów, omówienie wkładu własnego oraz propozycje dalszego rozwoju systemu.
 

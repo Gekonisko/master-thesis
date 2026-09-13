@@ -3,13 +3,22 @@
 
 Mechanizmy wspomagania decyzji w systemie PlanWise wykorzystują dane operacyjne do przygotowywania ocen i rekomendacji dotyczących realizacji projektu. Obejmują analizę ryzyka, prognozowanie wykonania sprintu, priorytetyzację backlogu, obliczanie harmonogramu, proponowanie przydziałów oraz estymację kosztów z wykorzystaniem dużego modelu językowego.
 
-Poszczególne mechanizmy różnią się sposobem przetwarzania informacji. Analiza ryzyka i priorytetyzacja wykorzystują deterministyczne funkcje oceny z ustalonymi wagami. Harmonogramowanie opiera się na analizie grafu zależności, natomiast przydzielanie zadań realizuje heurystyka zachłanna. Estymacja kosztów korzysta z zewnętrznego modelu językowego.
+Poszczególne mechanizmy różnią się sposobem przetwarzania informacji, przy czym dla każdego z nich sposób wyznaczania wyniku oddzielono od pozostałych odpowiedzialności modułu jawną granicą programistyczną. Za każdą z tych granic umieszczono co najmniej dwie implementacje, co pozwala porównywać metody zamiast zakładać przewagę którejkolwiek z nich.
 
-W analizowanej wersji systemu nie zaimplementowano trenowania modelu predykcyjnego na historycznych wynikach realizacji projektów. Rozwiązania heurystyczne stanowią punkt odniesienia dla takiego rozszerzenia. W rozdziale przedstawiono ich rzeczywiste działanie, przyjęte założenia i ograniczenia interpretacji wyników.
+Na potrzeby rozdziału przyjęto szerokie rozumienie pojęcia modelu, obejmujące cztery jego postacie występujące w systemie:
 
-Prace nad modelami wykorzystywanymi przez system objęły jednak więcej niż samo zaprogramowanie heurystyk. Obejmowały również przygotowanie granicy programistycznej umożliwiającej zamianę metody, uruchomienie rejestrowania danych uczących oraz zaprojektowanie sposobu współpracy z zewnętrznym modelem językowym. Zagadnieniom tym poświęcono sekcje~\ref{sec:prace-nad-modelem-ml} i~\ref{sec:estymacja-llm-praca-nad-modelem}, przy czym konsekwentnie oddzielono w nich elementy zrealizowane od zaplanowanych.
+\begin{itemize}
+    \item \textbf{model jawnie zaprojektowany}, w którym wagi i progi ustala projektant; w tej postaci działa heurystyczna ocena ryzyka i punktowa priorytetyzacja backlogu;
+    \item \textbf{model uczony}, w którym parametry wyznaczono na podstawie danych; w tej postaci działa predykcja opóźnienia zadania;
+    \item \textbf{model optymalizacyjny}, w którym wynik uzyskuje się przez rozwiązanie zadania z ograniczeniami, a nie przez oszacowanie wielkości nieznanej; w tej postaci działa przydzielanie zadań;
+    \item \textbf{model językowy wytrenowany przez dostawcę zewnętrznego}, wykorzystywany przez sformułowanie zadania i ograniczenie formatu odpowiedzi; w tej postaci działa estymacja kosztów oraz alternatywna priorytetyzacja backlogu.
+\end{itemize}
 
-Na potrzeby rozdziału przyjęto szerokie rozumienie pojęcia modelu, obejmujące trzy różne jego postacie występujące w systemie. Pierwszą jest model jawnie zaprojektowany, w którym wagi i progi ustala projektant. Drugą jest model uczony, w którym parametry są wyznaczane na podstawie danych; w obecnej wersji przygotowano dla niego infrastrukturę, lecz nie dopasowano samego modelu. Trzecią jest gotowy model wytrenowany przez dostawcę zewnętrznego, wykorzystywany przez sformułowanie zadania i ograniczenie formatu odpowiedzi. Formy te wymagają odmiennego sposobu opisu, oceny i uzasadniania wyników, co podkreślono przy omawianiu każdej z nich.
+Rozróżnienie to jest istotne, ponieważ każda z tych postaci wymaga innego sposobu uzasadniania i oceny wyników. Model optymalizacyjny można oceniać względem zadeklarowanej funkcji celu, model uczony wymaga zbioru testowego i metody odniesienia, a wypowiedź modelu językowego nie podlega weryfikacji rachunkowej w ten sam sposób co obliczenie deterministyczne.
+
+Prace nad modelami objęły zatem więcej niż zaprogramowanie reguł oceny. Obejmowały przygotowanie granic umożliwiających zamianę metody, uruchomienie rejestrowania danych uczących, pozyskanie i przygotowanie zbioru danych, dopasowanie oraz ocenę modelu predykcyjnego, sformułowanie zadania optymalizacyjnego, a także zaprojektowanie sposobu współpracy z modelem językowym. Zagadnieniom tym poświęcono sekcje~\ref{sec:prace-nad-modelem-ml}, \ref{subsec:cpsat} i~\ref{sec:estymacja-llm-praca-nad-modelem}.
+
+Konsekwentnie oddzielono przy tym elementy zrealizowane i zmierzone od przyjętych założeń oraz od kierunków dalszych prac.
 
 \section{Dane wejściowe i przebieg analiz}
 
@@ -92,7 +101,7 @@ W kontraktach implementacji wynik występuje pod nazwami odnoszącymi się do pr
 
 Poprawna interpretacja to względna ocena nasilenia zdefiniowanych czynników ryzyka. Wartość zero oznacza brak wykrytych czynników z przyjętej listy, a nie pewność terminowego wykonania.
 
-Ponadto część punktacji dotyczy zadań już przeterminowanych. Mechanizm łączy zatem wykrywanie istniejących problemów z sygnalizowaniem zagrożeń dla zadań, których termin jeszcze nie upłynął. Przy ocenie jakości przyszłego modelu predykcyjnego grupy te powinny zostać rozdzielone.
+Ponadto część punktacji dotyczy zadań już przeterminowanych. Mechanizm łączy zatem wykrywanie istniejących problemów z sygnalizowaniem zagrożeń dla zadań, których termin jeszcze nie upłynął. Przy porównywaniu tej heurystyki z modelem uczonym obie grupy powinny zostać rozdzielone, ponieważ rozpoznanie opóźnienia już zaistniałego nie jest prognozą i zawyżałoby ocenę metody.
 
 \subsection{Szacowanie wpływu na termin i generowanie wyjaśnień}
 
@@ -126,18 +135,9 @@ Oceny co najmniej równe \(0{,}50\) uruchamiają dodatkowo tworzenie powiadomie�
 
 Klasa \texttt{SprintForecaster} przygotowuje uproszczoną projekcję wykonania aktywnego sprintu. Mechanizm zakłada stałe tempo realizacji.
 
-Niech \(P\) oznacza sumę punktów zadań sprintu, \(D\) sumę punktów zakończonych, \(L\) długość sprintu, a \(C\) wejściowy parametr pojemności. Dzienne tempo jest obliczane jako:
+Niech \(P\) oznacza sumę punktów zadań sprintu, \(D\) sumę punktów zakończonych, a \(v\) dzienne tempo realizacji. Tempo nie jest wyznaczane w samym prognostyku, lecz przekazywane do niego jako parametr. Odpowiada za nie osobny komponent \texttt{VelocityEstimator}, opisany w dalszej części podrozdziału.
 
-\begin{equation}
-    v =
-    \begin{cases}
-        C/L, & C>0,\\
-        0, & C\leq 0.
-    \end{cases}
-    \label{eq:sprint-tempo}
-\end{equation}
-
-Długość sprintu jest różnicą dat zakończenia i rozpoczęcia, ograniczoną od dołu do jednego dnia. Dla liczby pozostałych dni \(t\) przewidywana liczba wykonanych punktów wynosi:
+Dla liczby pozostałych dni \(t\), liczonej jako różnica daty zakończenia sprintu i daty bieżącej i ograniczonej od dołu do zera, przewidywana liczba wykonanych punktów wynosi:
 
 \begin{equation}
     E = \min(P,\ D+vt).
@@ -157,9 +157,35 @@ Wskaźnik zapisany w polu \texttt{CompletionProbability} jest równy:
 
 Wynik opisuje przewidywany udział wykonanych punktów przy zadanym tempie. Nie jest statystycznym prawdopodobieństwem ukończenia całego zakresu.
 
-Istotne ograniczenie występuje już przy przygotowaniu parametru \(C\). Procedura analizy sumuje wartości \texttt{Capacity} członków powiązanych z kontami i przekazuje je jako \texttt{teamCapacityPoints}. Tymczasem w modelu zespołu wartości te opisują udział dostępności, a nie pojemność punktową sprintu.
+\subsection{Wyznaczanie tempa zespołu}
+\label{subsec:velocity-estimator}
 
-Brakuje zatem jawnego przeliczenia dostępności na możliwy do wykonania zakres. Dopóki takie przeliczenie nie zostanie zdefiniowane i zweryfikowane, wyniki projekcji nie powinny być traktowane jako wiarygodna prognoza tempa zespołu.
+Wcześniejsza wersja mechanizmu wyznaczała tempo bezpośrednio z deklarowanej pojemności zespołu, dzieląc jej sumę przez długość sprintu. Rozwiązanie to zawierało błąd jednostek. Pole \texttt{Capacity} członka zespołu opisuje udział etatu, gdzie wartość jeden oznacza pełny wymiar czasu pracy, a suma tych wartości daje liczbę etatów, a nie liczbę punktów możliwych do wykonania. Trzyosobowy zespół otrzymywał w konsekwencji budżet trzech punktów na sprint, przez co każda prognoza wskazywała niemal pewne niepowodzenie, a przewidywana data zakończenia wypadała wiele miesięcy po terminie.
+
+Przeliczenie etatów na punkty wymaga tempa, a jedynym rzetelnym jego źródłem są zakończone sprinty danego projektu. Odpowiedzialność tę wydzielono do komponentu \texttt{VelocityEstimator}, który zwraca tempo wraz z informacją, czy zostało zmierzone, czy założone.
+
+Dla zbioru \(S\) sprintów zakończonych, w których wykonano dodatnią liczbę punktów, tempo wyznaczane jest jako średnia z temp poszczególnych sprintów:
+
+\begin{equation}
+    v = \frac{1}{|S|}\sum_{s \in S} \frac{D_s}{\max(1, L_s)},
+    \qquad |S| > 0,
+    \label{eq:velocity-zmierzone}
+\end{equation}
+
+gdzie \(D_s\) oznacza liczbę punktów zadań zakończonych w sprincie \(s\), a \(L_s\) jego długość w dniach. Uśrednianie odbywa się po tempie dziennym, a nie po liczbie punktów na sprint, dzięki czemu sprinty o różnej długości pozostają porównywalne.
+
+Jeżeli projekt nie ma żadnego zakończonego sprintu, w którym wykonano punkty, stosowany jest wariant zastępczy:
+
+\begin{equation}
+    v = 0{,}6 \sum_{j} c_j,
+    \label{eq:velocity-zalozone}
+\end{equation}
+
+gdzie \(c_j\) oznacza udział etatu członka zespołu. Stała \(0{,}6\) punktu na etat dziennie odpowiada w przybliżeniu ośmiu punktom na dwutygodniowy sprint. Jest to reguła planistyczna przyjęta w implementacji, a nie wielkość wyznaczona z danych.
+
+Rozróżnienie obu przypadków jest przekazywane użytkownikowi w treści założeń towarzyszących wynikowi. Tempo zmierzone na sześciu zakończonych sprintach i tempo przyjęte z reguły kciuka nie powinny być prezentowane w ten sam sposób, ponieważ zasługują na różny stopień zaufania.
+
+Ograniczenie pozostaje jednak istotne: model zakłada stałe tempo i nie uwzględnia dni wolnych, częściowej dostępności ani zmian zakresu w trakcie sprintu. Prognoza sprintu jest zatem projekcją, a nie predykcją, i nie pochodzi z modelu uczonego — również wtedy, gdy oceny ryzyka zadań wyznacza model opisany w sekcji~\ref{sec:prace-nad-modelem-ml}.
 
 \subsection{Warianty daty zakończenia sprintu}
 
@@ -186,9 +212,11 @@ Nazwy sugerujące kwantyle nie powinny przesłaniać charakteru tych wartości. 
 
 Zastąpienie heurystyki modelem uczonym wymaga spełnienia kilku warunków, z których dopasowanie samego modelu jest ostatnim, a nie pierwszym. Wcześniej konieczne jest określenie zdarzenia docelowego, zapewnienie możliwości wymiany metody bez przebudowy modułu oraz zgromadzenie obserwacji, na których uczenie miałoby się odbywać.
 
-W analizowanej wersji systemu zrealizowano trzy pierwsze elementy: zdefiniowano zdarzenie docelowe i sposób jego etykietowania, wprowadzono granicę modelu opisaną w sekcji~\ref{sec:granica-modelu-ai} oraz uruchomiono rejestrowanie danych uczących. Nie dopasowano natomiast modelu do danych, nie przeprowadzono jego walidacji ani porównania z heurystyką. W niniejszej sekcji przedstawiono zakres wykonanych prac oraz to, co pozostaje do wykonania.
+W systemie zrealizowano wszystkie te elementy. Zdefiniowano zdarzenie docelowe i sposób jego etykietowania, wprowadzono granicę modelu opisaną w sekcji~\ref{sec:granica-modelu-ai}, uruchomiono rejestrowanie danych uczących, a następnie dopasowano model regresji logistycznej i wdrożono go jako drugą implementację tej granicy.
 
-Kolejność ta wynika z właściwości danych, a nie z wygody organizacji pracy. Uzasadniono ją poniżej, przy omawianiu rejestrowania obserwacji.
+Model nie został jednak wytrenowany na danych zgromadzonych przez sam system, ponieważ te dopiero narastają. Wykorzystano publiczny zbiór projektów prowadzonych w metodyce zwinnej, co przenosi ciężar dyskusji z pytania o dostępność danych na pytanie o przenoszalność wyników pomiędzy organizacjami. Zagadnieniu temu poświęcono osobną podsekcję.
+
+W dalszej części omówiono kolejno: model bazowy, konstrukcję etykiety i wektora cech, mechanizm gromadzenia obserwacji, dobór i ocenę modelu uczonego, jego wdrożenie oraz ograniczenia przyjętego rozwiązania. Konsekwentnie oddzielono wielkości zmierzone od przyjętych założeń.
 
 \subsection{Model bazowy jako nazwany i wersjonowany artefakt}
 
@@ -199,10 +227,10 @@ Model heurystyczny zwraca w polu opisującym zakres historii wartość zerową. 
 \begin{itemize}
     \item ryzyko jest oceniane przez deterministyczną heurystykę ważoną, obejmującą presję terminu, otwarte zależności blokujące, brak wykonawcy i rozmiar zadania, a nie przez model statystyczny lub uczony;
     \item w systemie nie istnieją jeszcze dane o rzeczywistych wynikach realizacji, wobec czego heurystyka nie została skalibrowana ani zweryfikowana wstecz, a jej wagi stanowią ustalone wartości poglądowe;
-    \item prognoza sprintu zakłada stałą, codzienną dostępność zadeklarowanej pojemności każdego członka zespołu i nie modeluje dni wolnych, częściowej dostępności ani zmian zakresu w trakcie sprintu.
+    \item prognoza sprintu opiera się na tempie wyznaczonym zgodnie z sekcją~\ref{subsec:velocity-estimator}, przy czym treść tego założenia zmienia się zależnie od tego, czy tempo zostało zmierzone na zakończonych sprintach projektu, czy przyjęte z reguły planistycznej.
 \end{itemize}
 
-Drugie z wymienionych założeń wymaga komentarza, ponieważ przytoczono je w brzmieniu zapisanym w implementacji. Odnosi się ono do braku danych nadających się do dopasowania i weryfikacji wstecznej modelu, a nie do braku samego mechanizmu ich rejestrowania, który opisano w dalszej części sekcji. Sformułowanie to będzie wymagało zmiany dopiero wtedy, gdy zgromadzony zbiór osiągnie liczebność pozwalającą na kalibrację.
+Drugie z wymienionych założeń wymaga komentarza, ponieważ przytoczono je w brzmieniu zapisanym w implementacji. Odnosi się ono do braku danych zgromadzonych przez sam system, a nie do braku mechanizmu ich rejestrowania ani do braku modelu uczonego w ogóle. Model opisany w dalszej części sekcji został bowiem dopasowany do danych zewnętrznych, co jest sytuacją odrębną od skalibrowania heurystyki na wynikach tego wdrożenia.
 
 Takie potraktowanie heurystyki nie jest zabiegiem wyłącznie porządkowym. Metoda bazowa musi pozostać uruchamialna również po wprowadzeniu modelu uczonego, ponieważ stanowi warunek kontrolny porównania. Stwierdzenie, że model uczony przewyższa heurystykę o określoną wartość, jest możliwe tylko wtedy, gdy obie metody można wykonać na tych samych danych i w tych samych warunkach.
 
@@ -293,17 +321,207 @@ Rozróżnienie to ma znaczenie dla poprawności późniejszego uczenia. Potrakto
 
 Uwzględniono również przypadki, w których etykieta nie może powstać mimo wcześniejszego zarejestrowania obserwacji. Termin zadania może zostać usunięty po wykonaniu prognozy, a samo zadanie może zostać usunięte z projektu. Wiersze takie pozostają nierozstrzygnięte i nie są uzupełniane wartościami zastępczymi.
 
-\subsection{Właściwości zgromadzonego zbioru i dalsze prace}
+\subsection{Właściwości zgromadzonego zbioru}
 
 Ponieważ obserwacja jest zapisywana przy każdym uruchomieniu analizy, to samo zadanie dostarcza z czasem kilku przykładów, opisujących różne momenty jego realizacji i dzielących ostatecznie jeden wynik. Jest to zamierzone, gdyż każdy wiersz stanowi odrębną parę stanu i rezultatu. Powoduje jednak, że obserwacje nie są wzajemnie niezależne.
 
-Konsekwencją tej właściwości jest wymaganie wobec przyszłego podziału danych. Musi on grupować obserwacje według zadania, tak aby różne migawki tego samego zadania nie trafiły jednocześnie do zbioru uczącego i testowego. Podział losowy prowadziłby tu do zawyżonej oceny jakości modelu.
+Konsekwencją tej właściwości jest wymaganie wobec podziału danych. Musi on grupować obserwacje według zadania, tak aby różne migawki tego samego zadania nie trafiły jednocześnie do zbioru uczącego i testowego. Podział losowy prowadziłby tu do zawyżonej oceny jakości modelu.
 
-Do wykonania pozostaje właściwa część uczenia maszynowego. Obejmuje ona ustalenie minimalnej liczebności zbioru pozwalającej na sensowne dopasowanie, wybór sformułowania zadania oraz rodziny modelu, przeprowadzenie uczenia z podziałem uwzględniającym czas i przynależność obserwacji do zadań, a następnie sprawdzenie kalibracji prognozowanych prawdopodobieństw. Osobnym krokiem jest porównanie z modelem bazowym i wskazanie warunków, w których model uczony nie przynosi poprawy.
+Zbiór ten nie osiągnął dotąd liczebności pozwalającej na dopasowanie modelu. Stanowiło to bezpośrednią przyczynę sięgnięcia po dane zewnętrzne, opisane w kolejnych podsekcjach. Jego docelową rolą nie jest już zatem dostarczenie pierwszego modelu, lecz umożliwienie rekalibracji modelu wytrenowanego gdzie indziej oraz zmierzenie, czy przewyższa on heurystykę w warunkach tego wdrożenia.
 
-Nie ustalono dotąd rozkładu etykiet w gromadzonych danych. Jeżeli okaże się on silnie niezrównoważony, konieczne będzie uwzględnienie tej cechy zarówno w doborze metryk, jak i w sposobie uczenia. Jest to jedno z zagadnień, których nie da się rozstrzygnąć przed zebraniem danych.
+\subsection{Dobór zbioru danych i odrzucona próba pierwsza}
+\label{subsec:dobor-zbioru-danych}
+
+Podjęto dwie próby pozyskania danych zewnętrznych. Pierwsza, oparta na publicznym eksporcie systemu śledzenia zgłoszeń jednego produktu, zakończyła się niepowodzeniem, które okazało się pouczające i zostało w pracy zachowane jako wynik negatywny.
+
+Eksport obejmował około czterdziestu dziewięciu tysięcy zgłoszeń, lecz pole terminu wypełniono jedynie w czterdziestu dziewięciu z nich. Etykieta oparta na przekroczeniu terminu nie mogła zatem powstać. Braki dotyczyły także cech: oszacowanie punktowe występowało w czterdziestu dziewięciu rekordach, wykonawca w około dwóch procentach, a powiązania blokujące w mniej niż jednym procencie. Spośród osiemnastu cech rejestrowanych przez system zbiór ten pozwalał wypełnić około trzech.
+
+Wniosek z tej próby jest ogólniejszy niż sam zbiór. Pola opisujące zobowiązanie terminowe bywają w publicznych rejestrach zgłoszeń niemal niewypełniane, ponieważ praca w kolejce zgłoszeń nie polega na dotrzymywaniu terminów pojedynczych pozycji. Dobór zbioru musi więc być prowadzony pod kątem dostępności etykiety, a nie samej liczby rekordów.
+
+Zbiór ten wykorzystano następnie w odrębnym, pomocniczym studium dotyczącym czasu obsługi zgłoszenia, opisanym w rozdziale~\ref{chap:testowanie}, oraz jako źródło realistycznych treści zadań przy przygotowywaniu danych demonstracyjnych.
+
+\subsection{Zbiór TAWOS i definicja etykiety}
+
+Druga próba wykorzystała zbiór TAWOS, obejmujący 458\,232 zgłoszenia z trzydziestu dziewięciu projektów otwartego oprogramowania prowadzonych w metodyce zwinnej, wraz ze sprintami, oszacowaniami punktowymi, powiązaniami i historią zmian.\footnote{V.~Tawosi, A.~Al-Subaihin, R.~Moussa, F.~Sarro, \textit{A Versatile Dataset of Agile Open Source Software Projects}, w: Proceedings of the 19th International Conference on Mining Software Repositories (MSR), 2022.}
+
+Rozstrzygające okazało się przedefiniowanie zobowiązania terminowego. Zamiast terminu pojedynczego zadania przyjęto datę zakończenia sprintu, do którego zadanie zostało przypisane:
+
+\begin{equation}
+    y_i =
+    \begin{cases}
+        1, & r_i = \varnothing \ \lor\ r_i > e_{s(i)},\\
+        0, & r_i \leq e_{s(i)},
+    \end{cases}
+    \label{eq:etykieta-tawos}
+\end{equation}
+
+gdzie \(r_i\) oznacza datę rozwiązania zgłoszenia, a \(e_{s(i)}\) datę zakończenia jego sprintu. Zgłoszenie nierozwiązane liczone jest jako opóźnione. Wykluczenie takich przypadków premiowałoby prace, które ostatecznie zakończono, a zadanie przypisane do sprintu i wciąż otwarte jest najwyraźniejszym przykładem niedotrzymanego zobowiązania.
+
+Zmiana ta jest decydująca, ponieważ przynależność do sprintu jest w danych zwinnych wypełniana konsekwentnie, w przeciwieństwie do terminów pojedynczych zadań. Różnicę w użyteczności obu zbiorów przedstawia tabela~\ref{tab:porownanie-zbiorow}.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Porównanie rozważanych zbiorów danych pod kątem możliwości uczenia}
+    \label{tab:porownanie-zbiorow}
+    \begin{tabularx}{\textwidth}{@{}Xrr@{}}
+        \toprule
+        \textbf{Właściwość} & \textbf{Eksport zgłoszeń} & \textbf{TAWOS} \\
+        \midrule
+        Obserwacje z etykietą & 49 & 19\,251 \\
+        Projekty & 1 & 36 \\
+        Sprinty & brak & 4\,594 \\
+        Powiązania między zadaniami & 98 & 246\,587 \\
+        Udział klasy pozytywnej & 4,9\% & 41,2\% \\
+        \bottomrule
+    \end{tabularx}
+
+    \par\smallskip
+    \begin{minipage}{\textwidth}
+        \footnotesize
+        Źródło: opracowanie własne na podstawie analizy obu zbiorów.
+    \end{minipage}
+\end{table}
+
+\subsection{Wykryte źródła przecieku informacji}
+
+Przygotowanie zbioru uczącego wymagało usunięcia dwóch źródeł przecieku informacji, z których żadne nie było widoczne bez zbadania zawartości danych.
+
+Pierwszym są oszacowania nadane w trakcie sprintu. Spośród 30\,165 zgłoszeń posiadających oszacowanie punktowe 10\,914 otrzymało je w czasie trwania sprintu lub po jego zakończeniu. Wykorzystanie ich oznaczałoby prognozowanie wyniku sprintu częściowo na podstawie informacji, która powstała dopiero po jego rozpoczęciu. Po ograniczeniu do oszacowań nadanych przed rozpoczęciem sprintu pozostało 19\,251 obserwacji i to one stanowią zbiór właściwy.
+
+Drugim są kolumny opisujące przebieg realizacji, takie jak zmierzony czas rozwiązania, czas w stanie realizacji, status i rozstrzygnięcie. Wszystkie są wypełnione i wszystkie opisują to, co się wydarzyło, wobec czego żadna nie może pełnić funkcji cechy.
+
+Z cech wyłączono ponadto identyfikator projektu. Stanowi on zmienną grupującą przy ocenie, a jego uwzględnienie pozwoliłoby modelowi zapamiętać charakterystyczny dla danego projektu udział opóźnień zamiast rozpoznawać zależności ogólne.
+
+\subsection{Protokoły oceny i wyniki}
+\label{subsec:protokoly-oceny}
+
+Zastosowano dwa protokoły oceny, odpowiadające dwóm różnym pytaniom. Ocena na projektach niewidzianych, przeprowadzona jako walidacja krzyżowa z grupowaniem według projektu, odpowiada na pytanie, czy model potrafi ocenić przedsięwzięcie, którego nie widział podczas uczenia. Ocena w przód w czasie polega na uczeniu na sprintach wcześniejszych i testowaniu na późniejszych.
+
+Dla systemu PlanWise rozstrzygający jest protokół pierwszy, ponieważ każdy nowy projekt jest dla modelu projektem nieznanym. Wyniki przedstawia tabela~\ref{tab:wyniki-tawos}.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Jakość predykcji opóźnienia dla różnych zestawów cech (pole pod krzywą ROC)}
+    \label{tab:wyniki-tawos}
+    \begin{tabularx}{\textwidth}{@{}Xll@{}}
+        \toprule
+        \textbf{Zestaw cech} & \textbf{Projekty niewidziane} & \textbf{W przód w czasie} \\
+        \midrule
+        Metoda odniesienia & 0,500 & 0,500 \\
+        Strukturalne & \textbf{0,589 $\pm$ 0,020} & 0,594 \\
+        Metadane & 0,576 $\pm$ 0,026 & \textbf{0,606} \\
+        Tekstowe & 0,577 $\pm$ 0,027 & 0,601 \\
+        Łączone & 0,580 $\pm$ 0,028 & 0,590 \\
+        \bottomrule
+    \end{tabularx}
+
+    \par\smallskip
+    \begin{minipage}{\textwidth}
+        \footnotesize
+        Źródło: opracowanie własne. Wartości dla projektów niewidzianych to średnia
+        i odchylenie standardowe z pięciu podziałów grupowanych według projektu.
+    \end{minipage}
+\end{table}
+
+Wynik należy przedstawić bez upiększeń: sygnał jest rzeczywisty, lecz słaby. Wartość około 0,59 wobec 0,500 dla metody odniesienia oznacza, że model nadaje się do porządkowania uwagi kierownika, a nie do orzekania, że konkretne zadanie zostanie opóźnione.
+
+Najważniejszą obserwacją jakościową jest to, że cechy strukturalne przenoszą się pomiędzy projektami, a cechy związane ze słownictwem nie. Zestaw strukturalny jest najlepszy i zarazem najbardziej stabilny na projektach niewidzianych, natomiast metadane wygrywają w ocenie w przód w czasie, lecz tracą przy przejściu na nieznane projekty. Przyczyna jest widoczna w danych: priorytet nie jest jednym słownikiem, ale kilkoma, ponieważ poszczególne projekty stosują odmienne nazewnictwo poziomów. Model uczony na jednym schemacie napotyka w projekcie testowym kategorie, których nie widział.
+
+Poszczególne cechy wykazują przy tym wyraźną i monotoniczną zależność od udziału opóźnień, co oznacza, że umiarkowana wartość miary zbiorczej dotyczy trudności ich \emph{łączenia}, a nie braku ich znaczenia. Najsilniejszym pojedynczym sygnałem są zależności: zgłoszenie bez powiązań blokujących opóźnia się w 39,3\% przypadków, z jednym powiązaniem w 55,3\%, a z dwoma w 67,9\%, przy udziale bazowym 41,2\%. Jest to dokładnie ta wielkość, którą system rejestruje jako liczbę niezakończonych poprzedników.
+
+Odnotowano również wynik negatywny istotny dla interpretacji heurystyki. Przypisanie wykonawcy nie różnicuje w tym zbiorze udziału opóźnień, który wynosi 41,2\% dla zgłoszeń przypisanych i 41,4\% dla nieprzypisanych. Wielkość ta jest jednak w danych TAWOS mało zróżnicowana, ponieważ przypisanych jest 94,5\% zgłoszeń, wobec czego wniosku nie należy automatycznie przenosić na PlanWise, gdzie zadania nieprzypisane są częste.
+
+\subsection{Dobór postaci modelu}
+
+Granica modelu wymaga podania wkładu poszczególnych cech w wynik, co model liniowy zapewnia dokładnie, a model oparty na zespołach drzew jedynie za pośrednictwem dodatkowej metody atrybucji. Koszt ten warto ponosić tylko wtedy, gdy model bardziej złożony rzeczywiście wygrywa, dlatego porównano kandydatów w tym samym protokole oceny.
+
+Wynik porównania zmienił przyjęty plan. Na wartościach surowych regresja logistyczna osiąga 0,510, czyli wynik nieodróżnialny od losowego, a wzmacnianie gradientowe 0,569. Po zastosowaniu przekształcenia \(\log(1+x)\) do cech zliczających regresja logistyczna osiąga 0,588 i wyprzedza wzmacnianie na tym samym zestawie cech.
+
+Nie jest to obserwacja o wyższości rodzin modeli, lecz o postaci zależności w danych. Są one monotoniczne, ale silnie nieliniowe i dotyczą wielkości o rozkładach skośnych. Przekształcenie logarytmiczne linearyzuje dokładnie tę własność, a uzyskany przyrost o 0,077 przewyższa różnicę między rozważanymi rodzinami modeli, wynoszącą 0,019. Wybór postaci cech okazał się zatem istotniejszy niż wybór algorytmu uczenia.
+
+Wdrożono w konsekwencji regresję logistyczną nad pięcioma przekształconymi cechami. Model sprowadza się do kilkudziesięciu współczynników, dzięki czemu nie wymaga żadnego środowiska wykonawczego wnioskowania w obrazie aplikacji, a jego współczynniki są zarazem wyjaśnieniem prezentowanym użytkownikowi.
+
+\subsection{Ograniczenie wynikające z możliwości obliczenia cech}
+
+Zestaw cech wdrożonego modelu jest węższy niż zestaw najlepszy w studium. Dwie cechy strukturalne pominięto, ponieważ system nie potrafi ich wyznaczyć dla zadania ocenianego na bieżąco: wiek zadania w backlogu, gdyż model danych nie zapisuje momentu utworzenia zadania, oraz liczbę powiązań innych niż blokujące, której nie udostępnia kontrakt międzymodułowy.
+
+Uczenie na cechach niemożliwych do obliczenia podczas eksploatacji prowadzi do rozbieżności między warunkami uczenia a warunkami użycia. Model osiąga wtedy dobre wyniki w ocenie offline, a następnie traci jakość w działaniu, ponieważ brakujące wielkości są zastępowane wartościami domyślnymi. Zdecydowano się ponieść ten koszt jawnie i zmierzyć go: pominięcie obu cech kosztuje 0,011 wartości pola pod krzywą ROC.
+
+Odwzorowanie pozostałych pięciu cech na dane PlanWise zapisano wprost, ponieważ jest to miejsce, w którym błąd nie ujawniłby się w żaden inny sposób. Liczba powiązań blokujących jest sumą poprzedników zadania i zadań przez nie blokowanych, gdyż zbiór uczący zlicza powiązania bez rozróżniania kierunku. Pozostałe cechy to oszacowanie punktowe zadania oraz trzy wielkości opisujące sprint: liczba zadań, suma punktów i długość w dniach.
+
+Zadanie nieprzypisane do żadnego sprintu nie ma tych trzech wielkości określonych. Stosowana jest wówczas mediana z danych uczących, a fakt ten jest odnotowywany w wyjaśnieniu. Brak sprintu oznacza bowiem wielkość nieznaną, a nie równą zeru.
+
+\subsection{Kalibracja i postać wdrożonego modelu}
+
+Ocena wykazała, że kalibracja jest słaba we wszystkich rozważanych wariantach, przy wartościach miary Briera w przedziale od 0,243 do 0,267 wobec 0,246 dla metody odniesienia. Surowe wyjście modelu nie nadaje się zatem do prezentowania jako wartość procentowa.
+
+Zastosowano kalibrację metodą Platta, to znaczy dopasowanie funkcji logistycznej do wartości funkcji decyzyjnej modelu. Wybrano ją po porównaniu z kalibracją izotoniczną, która wypadła nieznacznie gorzej na projektach niewidzianych, przy wartościach miary Briera odpowiednio 0,2400 i 0,2413.
+
+Ostateczne przetworzenie pojedynczej cechy obejmuje kolejno: zastąpienie wartości brakującej medianą, obcięcie do wartości nieujemnych, przekształcenie \(\log(1+x)\), standaryzację i przemnożenie przez współczynnik. Suma wkładów powiększona o wyraz wolny tworzy wartość funkcji decyzyjnej, która następnie podlega kalibracji.
+
+Dopasowane współczynniki przedstawia tabela~\ref{tab:wspolczynniki-modelu}. Odtwarzają one obserwacje ze studium, łącznie z zależnością przeciwną do intuicyjnej.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Współczynniki wdrożonego modelu regresji logistycznej}
+    \label{tab:wspolczynniki-modelu}
+    \begin{tabularx}{\textwidth}{@{}lrX@{}}
+        \toprule
+        \textbf{Cecha} & \textbf{Współczynnik} & \textbf{Interpretacja} \\
+        \midrule
+        Oszacowanie punktowe & $+0{,}347$ & większe zadania opóźniają się częściej \\
+        Powiązania blokujące & $+0{,}252$ & zależności są najsilniejszym sygnałem \\
+        Liczba zadań w sprincie & $+0{,}145$ & sprinty o wielu pozycjach opóźniają się częściej \\
+        Suma punktów w sprincie & $-0{,}409$ & większe zobowiązania opóźniają się rzadziej \\
+        Długość sprintu & $+0{,}024$ & wpływ pomijalny \\
+        \bottomrule
+    \end{tabularx}
+
+    \par\smallskip
+    \begin{minipage}{\textwidth}
+        \footnotesize
+        Źródło: opracowanie własne. Współczynniki dotyczą cech przekształconych
+        i wystandaryzowanych, wobec czego nie są bezpośrednio porównywalne
+        z wielkościami wyrażonymi w jednostkach pierwotnych.
+    \end{minipage}
+\end{table}
+
+Zależność ujemna dla sumy punktów przypisanych do sprintu zasługuje na komentarz, ponieważ przeczy oczekiwaniu, że większe zobowiązanie jest trudniejsze do dotrzymania. Jest ona jednak zgodna z obserwacją surową: sprinty o zobowiązaniu poniżej dwudziestu punktów wykazują 48,6\% opóźnień, a sprinty o zobowiązaniu od stu do dwustu punktów 37,5\%. Prawdopodobnym wyjaśnieniem jest to, że duże zobowiązanie świadczy o zespole planującym regularnie i mierzącym swoją przepustowość, podczas gdy sprinty bardzo małe powstają często w projektach prowadzonych dorywczo. Jest to hipoteza interpretacyjna, której w ramach pracy nie zweryfikowano.
+
+\subsection{Model wytrenowany jako implementacja granicy}
+
+Model zapisano jako dokument opisujący jego współczynniki, parametry standaryzacji, mediany cech, kalibrację oraz metadane pochodzenia, a następnie osadzono w zasobach modułu. Rozwiązanie takie jest możliwe dzięki niewielkiemu rozmiarowi modelu liniowego i pozwala uniknąć wprowadzania do systemu dodatkowego środowiska wnioskowania.
+
+Podczas wczytywania sprawdzana jest wersja schematu oraz nazwa zastosowanego przekształcenia. Nowsza wersja eksportu mogłaby bowiem zmienić postać obliczeń, zachowując te same nazwy pól, a zatrzymanie uruchomienia z jawnym komunikatem jest bezpieczniejsze niż wyznaczanie wartości według niewłaściwego wzoru.
+
+Wdrożony model wyznacza wyłącznie prawdopodobieństwo opóźnienia zadania. Prognoza wykonania sprintu oraz szacowany wpływ na termin nadal pochodzą z mechanizmów opisanych w sekcji poprzedniej, ponieważ zbiór uczący nie zawiera informacji o tym, o ile dni opóźniło się zgłoszenie. Rozróżnienie to jest zapisywane w założeniach towarzyszących każdemu uruchomieniu: model, który jawnie wskazuje, która część jego wyniku pochodzi z uczenia, jest wart więcej niż model tego nieujawniający.
+
+Do założeń dołączane jest również ostrzeżenie zależne od danych. Każda obserwacja ucząca dotyczyła zgłoszenia przypisanego do sprintu, wobec czego zadanie znajdujące się w backlogu leży poza rozkładem, na którym model dopasowano. Informacja o liczbie takich zadań jest dołączana tylko wtedy, gdy w danym przebiegu wystąpiły.
+
+\subsection{Zgodność dwóch implementacji i wybór modelu domyślnego}
+
+Opisane przetwarzanie ma dwie implementacje: w języku Python, w którym model przygotowano i oceniono, oraz w języku C\#, w którym jest wykonywany. Rozbieżność między nimi nie objawiłaby się błędem, lecz cichym zwracaniem wartości innych niż ocenione.
+
+Zabezpieczono to zestawem przypadków wzorcowych obejmujących jedenaście wektorów wejściowych, w tym przypadki brzegowe: zadanie bez oszacowania i bez sprintu, sprint o dacie zakończenia wcześniejszej od daty rozpoczęcia oraz wektor złożony z samych zer. Oczekiwane wartości wygenerowano implementacją referencyjną i porównuje się je z dokładnością do dziesięciu miejsc po przecinku. Osobny test sprawdza, że suma wkładów poszczególnych cech odtwarza wartość funkcji decyzyjnej, czyli że wyjaśnienie prezentowane użytkownikowi jest rzeczywistym rozkładem wyniku modelu, a nie liczbami o charakterze wyłącznie ilustracyjnym.
+
+Mimo wdrożenia modelu uczonego domyślną implementacją pozostaje heurystyka, a model uczony jest włączany ustawieniem konfiguracyjnym. Decyzja ta wynika z dwóch przesłanek. Wartość 0,59 stanowi sygnał rzeczywisty, lecz nie przewagę oczywistą nad dostrojoną heurystyką, a kalibracja pochodzi z danych innych organizacji. Przełączenie domyślnej metody powinno zatem zostać uzasadnione pomiarem na danych gromadzonych przez to wdrożenie, a nie samym wynikiem studium. Jest to praktyczne zastosowanie zasady, dla której model bazowy pozostawiono uruchamialnym.
+
+\subsection{Ograniczenia i dalsze prace}
+
+Podstawowym ograniczeniem jest pochodzenie danych uczących. Zbiór obejmuje projekty otwartego oprogramowania, które mogą opóźniać się inaczej niż zespoły komercyjne działające pod presją zobowiązań wobec klienta. Prawdopodobieństwa nie zostały ponadto skalibrowane na wynikach tego wdrożenia, wobec czego należy je odczytywać jako sposób porządkowania uwagi, a nie jako dosłowne szanse wystąpienia zdarzenia.
+
+Istotny jest również zakres kontekstu. Model dysponuje wielkościami opisującymi obciążenie sprintu, nie dysponuje natomiast historią przepustowości zespołu, w której prawdopodobnie znajduje się znaczna część brakującego sygnału. Uzupełnienie tej luki jest naturalnym kierunkiem dalszych prac, możliwym dopiero po zgromadzeniu odpowiedniej historii.
+
+W ocenie w przód w czasie odnotowano dodatkowo rzeczywistą zmianę charakterystyki danych: udział opóźnień w okresie testowym wynosił 53,3\% wobec 38,2\% w okresie uczącym. Nie jest to artefakt przygotowania danych, lecz zjawisko obniżające mierzone wartości, które wskazuje na potrzebę monitorowania jakości modelu w czasie.
 
 \section{Wielokryterialna priorytetyzacja backlogu}
+
+Także ten mechanizm został oddzielony od sposobu wyznaczania wyniku granicą programistyczną, analogiczną do opisanej dla predykcji ryzyka. Wyróżnia go jednak charakter rozwiązywanego problemu: ustalenie kolejności backlogu jest oceną wartościującą, dla której nie istnieje wynik poprawny, jaki można byłoby wykorzystać jako etykietę. Nie ma zatem czego uczyć w sensie nadzorowanym, a naturalnym kandydatem na implementację alternatywną jest model językowy, nie model dopasowywany do danych.
+
+Zaimplementowano obie możliwości. Podstawową jest opisana niżej heurystyka punktowa, a alternatywną model językowy omówiony w podsekcji~\ref{subsec:priorytetyzacja-llm}.
 
 \subsection{Wybór kryteriów i normalizacja}
 
@@ -357,6 +575,23 @@ Składowa ryzyka pochodzi z ostatnich dostępnych wyników modułu \texttt{RiskP
 
 Moduł przewiduje zatwierdzanie i odrzucanie propozycji. Oddziela to wygenerowanie rankingu od decyzji o wykorzystaniu go w organizacji backlogu.
 
+\subsection{Priorytetyzacja z wykorzystaniem modelu językowego}
+\label{subsec:priorytetyzacja-llm}
+
+Drugą implementacją granicy priorytetyzacji jest model językowy. Uzasadnieniem jest wskazany wcześniej brak etykiety: skoro nie istnieje kolejność wzorcowa, do której można byłoby dopasować model, pozostaje metoda operująca na opisach zadań i formułująca ocenę wartościującą.
+
+Rozwiązanie korzysta z tego samego podejścia technicznego co estymacja kosztów, opisanego w sekcji~\ref{sec:estymacja-llm-praca-nad-modelem}: bezpośrednie wywołanie interfejsu dostawcy przez klienta HTTP oraz wymuszone wywołanie narzędzia o zadeklarowanym schemacie zamiast odpowiedzi tekstowej.
+
+Zadania są przekazywane modelowi pod ich krótkimi kluczami czytelnymi dla człowieka, a nie pod identyfikatorami technicznymi. Modele odtwarzają wiernie krótkie oznaczenia, natomiast długie ciągi nieposiadające znaczenia bywają przez nie zniekształcane, co przy przetwarzaniu odpowiedzi skutkowałoby brakiem możliwości powiązania pozycji z zadaniem.
+
+Oceny ryzyka pochodzące z modułu predykcji są przekazywane na wejściu, zamiast być pobierane przez samą implementację. Dzięki temu priorytetyzacja pozostaje funkcją swojego wejścia i może zostać powtórzona, co jest tą samą zasadą, którą zastosowano wobec daty odniesienia w granicy predykcji ryzyka.
+
+Wybór implementacji następuje na podstawie obecności skonfigurowanego klucza dostępu. Jego brak powoduje zarejestrowanie heurystyki, a nie niepowodzenie analizy. Środowisko pozbawione dostępu do usługi zewnętrznej zachowuje zatem działający widok priorytetów, choć wyznaczony metodą prostszą.
+
+Zakres porządkowanych zadań jest ustalany przez stronę wywołującą, a nie przez model, a bieżące pozycje odczytywane są z kolejności przekazanej listy. Model nie może więc w sposób niejawny zmienić tego, co porządkuje. Dopuszczono przy tym zwrócenie mniejszej liczby pozycji niż przekazana, na wypadek elementów, których model nie potrafi ocenić; pozycje pominięte nie są dopisywane automatycznie.
+
+Ograniczenia tej metody są odmienne od ograniczeń heurystyki i wymagają odrębnego omówienia. Wynik nie jest funkcją deterministyczną, wobec czego powtórzenie analizy na tych samych danych może dać inną kolejność. Uzasadnienie towarzyszące pozycji jest wypowiedzią modelu, a nie zapisem procedury obliczeniowej, przez co nie podlega weryfikacji rachunkowej w sposób, w jaki podlegają jej składowe oceny punktowej. Porównanie obu metod należy zatem prowadzić nie tylko pod względem zgodności z preferencjami, lecz także pod względem powtarzalności.
+
 \section{Harmonogramowanie i proponowanie przydziałów}
 
 \subsection{Graf zależności i porządek obliczeń}
@@ -407,9 +642,9 @@ Implementacja oznacza zadanie jako krytyczne, gdy \(TF_i\leq 0\). Ujemny zapas, 
 
 Ręcznie zapisane daty zastępują terminy wyznaczane w przebiegu w przód. Nie oznacza to pełnego rozwiązania problemu harmonogramowania z ograniczeniami zasobowymi. Wykonawca, jego dostępność i konkurencja kilku zadań o ten sam zasób nie określają tutaj czasu trwania.
 
-\subsection{Przygotowanie zadań i kandydatów do przydziału}
+\subsection{Heurystyka zachłanna jako metoda bazowa}
 
-Propozycje przydziału przygotowuje \texttt{ScheduleOptimisationJobHandler}, identyfikowany jako \texttt{GreedyCapacityBalancer v1}.
+Sposób wyboru wykonawców również oddzielono od pozostałych elementów modułu granicą programistyczną. Za nią umieszczono dwie implementacje: heurystykę zachłanną, opisaną w tej i następnej podsekcji, oraz solver programowania z ograniczeniami, omówiony w podsekcji~\ref{subsec:cpsat}. Heurystyka pełni obecnie rolę metody bazowej i rozwiązania zastępczego.
 
 Do zbioru kandydatów należą członkowie posiadający identyfikator konta i dodatnią pojemność. Analizowane są zadania niezakończone, które nie mają wykonawcy.
 
@@ -446,6 +681,30 @@ Wskaźnik \(L_j/C_j\) służy do porównania względnego obciążenia. Ponieważ
 
 Dopasowanie tekstowe nie sprawdza poziomu kompetencji ani rzeczywistych wymagań zadania. Może nie rozpoznać synonimów lub wskazać przypadkową zgodność fragmentu tekstu. Jest to zastępnik strukturalnego modelu wymaganych umiejętności.
 
+\subsection{Optymalizacja z ograniczeniami zasobowymi}
+\label{subsec:cpsat}
+
+Zasadniczym ograniczeniem heurystyki zachłannej jest brak modelu czasu. Optymalizuje ona równomierność obciążenia, która stanowi wielkość zastępczą, a nie cel rzeczywisty, jakim jest wcześniejsze zakończenie projektu. Nie rozpoznaje, że powierzenie zadania leżącego na ścieżce krytycznej osobie już obciążonej przesuwa wszystkie prace zależne, ani że dwa zadania przypisane tej samej osobie nie mogą być realizowane równocześnie. Równomierność obciążenia i długość projektu przestają być zgodne, gdy tylko w projekcie występują zależności.
+
+Z tego powodu jako domyślną implementację wdrożono solver programowania z ograniczeniami. Problem sformułowano jako harmonogramowanie projektu z ograniczonymi zasobami. Zmiennymi są momenty rozpoczęcia zadań oraz przypisania wykonawców, reprezentowane przez opcjonalne przedziały czasowe tworzone dla każdej pary zadania i kandydata, przy czym wszystkie przedziały danego zadania współdzielą jego zmienną rozpoczęcia.
+
+Model obejmuje następujące ograniczenia:
+
+\begin{itemize}
+    \item każde zadanie otrzymuje dokładnie jednego wykonawcę, a prace już przypisane pozostają związane ze swoim dotychczasowym właścicielem;
+    \item czas trwania zadania jest skalowany dostępnością wykonawcy, wobec czego osoba zaangażowana w połowie wymiaru czasu wykonuje to samo zadanie dwukrotnie dłużej;
+    \item przedziały przypisane jednej osobie nie mogą na siebie zachodzić, co odwzorowuje wykonywanie jednego zadania naraz;
+    \item zadanie nie może rozpocząć się przed zakończeniem wszystkich niezakończonych poprzedników.
+\end{itemize}
+
+Funkcja celu łączy trzy składniki: długość projektu, przekroczenia terminów oraz preferencję dopasowania kompetencji. Składniki te nie są rozwiązywane leksykograficznie, lecz łączone z wagami wynoszącymi odpowiednio 10\,000, 100 i 1. Oznacza to, że dostatecznie duża oszczędność na przekroczeniach terminów może w zasadzie zostać kupiona kosztem jednego dnia długości projektu. Wagi są podawane w treści wyjaśnienia towarzyszącego propozycji, zamiast pozostawać założeniem ukrytym w kodzie.
+
+Przyjęta hierarchia jest decyzją projektową. Długość projektu dominuje, ponieważ dzień opóźnienia całości przeważa nad dowolną oszczędnością na pojedynczych terminach. Dopasowanie kompetencji pełni wyłącznie rolę rozstrzygania remisów, ponieważ samo dopasowanie jest heurystyką tekstową opisaną wyżej i nie zasługuje na większą wagę.
+
+Solverowi przydzielono ograniczenie czasu wynoszące dziesięć sekund. Rozwiązanie takie wynika z przyjętego sposobu obsługi przypadków trudnych: projekt o niekorzystnej strukturze nie blokuje zlecenia w nieskończoność, lecz kończy się wynikiem gorszym. Gdy solver nie znajdzie rozwiązania w wyznaczonym czasie lub gdy nie powiedzie się załadowanie biblioteki natywnej, zwracany jest wynik heurystyki zachłannej.
+
+Kluczową właściwością tego zachowania jest jego jawność. Nazwa metody, która rzeczywiście wykonała obliczenia, jest zapisywana wraz z propozycją, a podmiana nigdy nie następuje w sposób niejawny. Z tego powodu identyfikator metody umieszczono w wyniku, a nie w definicji interfejsu, inaczej niż w pozostałych trzech granicach modeli: to, który mechanizm zadziałał, jest tutaj faktem dotyczącym konkretnego uruchomienia, a nie stałą właściwością zarejestrowanej implementacji.
+
 \subsection{Zapis, zatwierdzanie i ograniczenia propozycji}
 
 Wynik jest zapisywany jako propozycja zawierająca zadania i sugerowanych wykonawców. Dołączane są opis celu, informacje o uwzględnionych założeniach i ograniczeniach oraz opis oczekiwanej zmiany obciążenia.
@@ -456,14 +715,18 @@ Aktualna implementacja nie wykonuje pełnej ponownej oceny danych przed zastosow
 
 Kolejne przydziały są wykonywane przez wywołania między modułami. Nie stanowią automatycznie jednej transakcji obejmującej cały zestaw. Dodatkowo procedura nie wykorzystuje zwracanej wartości logicznej operacji przypisania, co ogranicza możliwość jednoznacznego rozpoznania częściowego niepowodzenia.
 
-Algorytm nie zmienia terminów ani istniejących przydziałów na etapie generowania propozycji. Nie modeluje kalendarzy nieobecności i nie wymusza górnej granicy obciążenia w ustalonym okresie.
+Żadna z implementacji nie zmienia istniejących przydziałów. Prace już przypisane pozostają przy swoich właścicielach, przy czym solver uwzględnia je jako zajmujące czas tych osób, natomiast heurystyka wlicza je jedynie do obciążenia początkowego.
 
-Opis oczekiwanej korzyści porównuje różnicę między największą i najmniejszą sumą punktów przed przydziałem i po nim. Wartość ta może wzrosnąć, mimo sformułowania komunikatu sugerującego redukcję. Ocena działania powinna zatem opierać się na obliczonych miarach, a nie na samym opisie tekstowym.
+Wspólnym ograniczeniem obu metod pozostaje brak modelu kalendarza. Dostępność traktowana jest jako wielkość stała, a każdy dzień jako roboczy, wobec czego nieobecności i dni wolne nie są uwzględniane. Utrzymano również uproszczenie jednego punktu jako jednego dnia pracy przy pełnej dostępności, ponieważ model zadania nie zawiera odrębnego pola pracochłonności.
+
+Sposób przedstawiania oczekiwanej korzyści różni się natomiast istotnie. Heurystyka porównywała różnicę między największą i najmniejszą sumą punktów przed przydziałem i po nim, przy czym wartość ta mogła wzrosnąć mimo komunikatu sugerującego jej ograniczenie. Solver podaje natomiast przewidywaną zmianę długości projektu, wyznaczoną przez rozplanowanie wyborów heurystyki przy identycznych ograniczeniach i porównanie obu wyników. Jest to porównanie równoważne, odnoszące się do tej samej wielkości i tych samych warunków, a nie deklaracja przewagi solvera.
+
+Wraz z propozycją zapisywana jest również informacja o tym, czy rozwiązanie zostało dowiedzione jako optymalne dla przyjętej funkcji celu, czy jedynie znalezione jako dopuszczalne w wyznaczonym czasie. Rozróżnienie to jest istotne, ponieważ obie sytuacje prowadzą do poprawnego wyniku, lecz uzasadniają różny stopień zaufania do jego jakości.
 
 \section{Estymacja kosztów z wykorzystaniem modelu językowego}
 \label{sec:estymacja-llm-praca-nad-modelem}
 
-Estymacja kosztów jest jedynym mechanizmem systemu korzystającym z modelu wytrenowanego poza projektem. Praca nad nim miała więc inny charakter niż w przypadku dwóch pozostałych postaci modelu omawianych w rozdziale: nie obejmowała doboru wag ani dopasowania parametrów, lecz sformułowanie zadania, ograniczenie formatu odpowiedzi, określenie zakresu przekazywanego kontekstu oraz obsługę przypadków, w których odpowiedź odbiega od oczekiwanej postaci.
+Estymacja kosztów była pierwszym mechanizmem systemu korzystającym z modelu językowego wytrenowanego poza projektem; drugim jest opisana wcześniej alternatywna priorytetyzacja backlogu. Praca nad tą postacią modelu ma inny charakter niż w pozostałych przypadkach omawianych w rozdziale: nie obejmuje doboru wag ani dopasowania parametrów, lecz sformułowanie zadania, ograniczenie formatu odpowiedzi, określenie zakresu przekazywanego kontekstu oraz obsługę przypadków, w których odpowiedź odbiega od oczekiwanej postaci.
 
 \subsection{Przygotowanie kontekstu estymacji}
 
@@ -588,7 +851,13 @@ W ocenie ryzyka i priorytetyzacji wynik jest wyznaczany przez jawną funkcję. M
 
 Wyjaśnienie wygenerowane przez model językowy ma inny status. Przedstawia deklarowane założenia i argumenty, ale nie stanowi gwarantowanego zapisu wewnętrznego procesu wyznaczania odpowiedzi. Jego poprawność trzeba oceniać względem danych projektu i zależności rachunkowych.
 
-Wprowadzenie modelu uczonego zmieniłoby charakter wyjaśnienia w module ryzyka, choć nie jego format. Struktura wyniku przewiduje dla każdego czynnika nazwę, wielkość wpływu i opis. W modelu heurystycznym wielkością tą jest ustalona waga reguły, natomiast model uczony raportowałby w tym samym miejscu przypisanie wpływu wyznaczone dla konkretnej prognozy. Zachowanie wspólnej struktury pozwala utrzymać sposób prezentacji, lecz nie zwalnia z obowiązku poinformowania użytkownika, że wielkości te mają wówczas inne znaczenie i podlegają innym ograniczeniom interpretacyjnym.
+Wprowadzenie modelu uczonego zmieniło charakter wyjaśnienia w module ryzyka, choć nie jego format. Struktura wyniku przewiduje dla każdego czynnika nazwę, wielkość wpływu i opis. W modelu heurystycznym wielkością tą jest ustalona waga reguły, natomiast model uczony podaje w tym samym miejscu wkład danej cechy w wartość funkcji decyzyjnej, wyznaczony dla konkretnej prognozy.
+
+Wybór modelu liniowego sprawia, że wkłady te sumują się dokładnie do wartości funkcji decyzyjnej, a nie stanowią jedynie przybliżenia. Własność ta jest sprawdzana testem, ponieważ jej utrata nie objawiłaby się w żaden inny sposób: interfejs prezentowałby wówczas liczby o charakterze dekoracyjnym zamiast rzeczywistego rozkładu wyniku.
+
+Zachowanie wspólnej struktury pozwala utrzymać jednolity sposób prezentacji, lecz nie zwalnia z obowiązku poinformowania użytkownika, że wielkości te mają w obu przypadkach inne znaczenie. Wkład wyznaczony przez model uczony dotyczy cechy przekształconej i wystandaryzowanej, wobec czego nie jest bezpośrednio porównywalny z wielkością wyrażoną w jednostkach pierwotnych.
+
+Odrębnym zagadnieniem jest wyjaśnialność wyniku optymalizacji. Solver nie szacuje wielkości nieznanej, lecz rozwiązuje zadanie o jawnie zapisanych ograniczeniach, dlatego jego wyjaśnienie przyjmuje inną postać: listy ograniczeń rzeczywiście dotrzymanych oraz listy ograniczeń, których nie modelowano. Użytkownik dowiaduje się zatem nie tyle, dlaczego wybrano danego wykonawcę, ile jakim warunkom wybór ten czyni zadość i czego w modelu pominięto.
 
 Wspólnym ograniczeniem jest jakość danych operacyjnych. Brak terminów, oszacowań i stawek może prowadzić do zastosowania wartości zastępczych. Wynik liczbowy nie powinien ukrywać tego faktu.
 

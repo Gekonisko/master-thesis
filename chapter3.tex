@@ -5,7 +5,7 @@ Projektowanie systemu PlanWise wymaga określenia jego miejsca wśród istnieją
 
 Analiza obejmuje organizację zadań, planowanie pracy zespołu, prezentację harmonogramu oraz mechanizmy automatyzacji i wspomagania decyzji. Na tej podstawie sformułowano wymagania funkcjonalne i niefunkcjonalne, określono użytkowników systemu oraz przedstawiono najważniejsze przypadki użycia.
 
-Wymagania zawarte w rozdziale opisują docelowe zachowanie rozwiązania. Stopień ich realizacji wymaga odrębnej weryfikacji na podstawie implementacji i wyników testów. Rozróżnienie to jest szczególnie istotne w odniesieniu do predykcji opóźnień. Aktualna wersja projektu wyznacza oceny ryzyka za pomocą heurystyki, przy czym stanowi ona jawnie nazwany model bazowy umieszczony za wymienną granicą modelu, a system rejestruje równocześnie dane potrzebne do wytrenowania jego następcy. Samo dopasowanie modelu uczonego i porównanie go z heurystyką pozostaje natomiast poza zakresem obecnej implementacji.
+Wymagania zawarte w rozdziale opisują docelowe zachowanie rozwiązania. Stopień ich realizacji wymaga odrębnej weryfikacji na podstawie implementacji i wyników testów. Rozróżnienie to jest szczególnie istotne w odniesieniu do predykcji opóźnień. System udostępnia zarówno heurystyczną ocenę ryzyka, stanowiącą jawnie nazwany model bazowy, jak i model uczony dopasowany do zewnętrznego zbioru danych, przy czym obie metody pozostają jednocześnie uruchamialne. Poza zakresem pracy pozostaje natomiast wykazanie przewagi modelu uczonego na danych gromadzonych przez samo wdrożenie, ponieważ wymaga to historii dłuższej niż czas realizacji projektu.
 
 
 \section{Kryteria porównania narzędzi do zarządzania projektami}
@@ -210,13 +210,13 @@ Wymaganiom funkcjonalnym nadano identyfikatory WF. Umożliwiają one powiązanie
     System powinien rejestrować, dla każdego uruchomienia analizy ryzyka, surowy wektor cech każdego ocenianego zadania wraz z wygenerowaną prognozą, a następnie uzupełniać te zapisy o rzeczywisty wynik realizacji, gdy stanie się on znany. Zapis powinien odróżniać wynik ostateczny od wyniku niepełnego oraz przypadki, dla których etykieta nie może powstać.
 
     \item[WF-14. Predykcja z wykorzystaniem ML.]
-    Docelowe rozwiązanie powinno udostępniać predykcję opóźnień z wykorzystaniem modelu uczonego na zgromadzonych danych oraz umożliwiać porównanie wyników z metodą heurystyczną. Wymaganie to stanowi rozszerzenie obecnej implementacji.
+    System powinien udostępniać predykcję opóźnień z wykorzystaniem modelu uczonego na danych oraz umożliwiać porównanie jej wyników z metodą heurystyczną przy zachowaniu obu metod w stanie uruchamialnym. Wynik modelu powinien być przedstawiany wraz z informacją o pochodzeniu danych uczących i o zakresie, w jakim podlega interpretacji probabilistycznej.
 
     \item[WF-15. Priorytetyzacja backlogu.]
     System powinien generować rekomendowaną kolejność zadań z uwzględnieniem wartości biznesowej, zależności, złożoności i ryzyka oraz umożliwiać jej zatwierdzenie lub odrzucenie.
 
     \item[WF-16. Wspomaganie przydziału pracy.]
-    System powinien generować propozycje przydziału zadań na podstawie obciążenia, pojemności i kompetencji zespołu. Powinien wskazywać ograniczenia metody oraz umożliwiać zastosowanie całej propozycji lub wybranych zmian.
+    System powinien generować propozycje przydziału zadań uwzględniające kolejność wynikającą z zależności, dostępność wykonawców oraz niemożność równoczesnego wykonywania wielu zadań przez jedną osobę. Powinien podawać przyjętą funkcję celu, wskazywać ograniczenia uwzględnione i pominięte oraz umożliwiać zastosowanie całej propozycji lub wybranych zmian. Jeżeli wynik pochodzi z metody zastępczej, fakt ten powinien zostać jawnie odnotowany.
 
     \item[WF-17. Estymacja kosztów.]
     System powinien wykorzystywać backlog i stawki zespołu do przygotowania estymacji z udziałem LLM. Wynik powinien obejmować wariant optymistyczny, realistyczny i pesymistyczny, składniki kosztów, założenia oraz uzasadnienie.
@@ -357,7 +357,9 @@ Użytkownik uruchamia estymację. System przygotowuje kontekst projektu, przekaz
 
 Podstawowym ograniczeniem jest dostępność danych historycznych. Wytrenowanie i wiarygodna ocena modelu opóźnień wymagają informacji o stanie projektu w chwili prognozy oraz późniejszych rezultatach. Bieżąca lista zadań nie zawiera danych pozwalających odtworzyć taki stan, ponieważ system przechowuje wartości aktualne, a nie ich historię.
 
-Ograniczenie to zostało w implementacji zaadresowane, lecz nie usunięte. Rejestrowanie wektorów cech i wyników realizacji uruchomiono, dzięki czemu zbiór uczący powstaje wraz z kolejnymi analizami. Jego liczebność zależy jednak od czasu eksploatacji systemu i liczby prowadzonych w nim projektów. W chwili sporządzania niniejszego opisu nie dysponowano zbiorem wystarczającym do dopasowania i rzetelnej oceny modelu, a ograniczenie to nie może zostać zniesione przez jednorazowe działanie implementacyjne.
+Ograniczenie to zostało w implementacji zaadresowane dwutorowo. Uruchomiono rejestrowanie wektorów cech i wyników realizacji, dzięki czemu zbiór uczący powstaje wraz z kolejnymi analizami, jego liczebność zależy jednak od czasu eksploatacji systemu i nie mogła zostać osiągnięta w ramach pracy. Model dopasowano zatem do publicznego zbioru projektów zwinnych pochodzących z innych organizacji.
+
+Rozwiązanie to zmienia charakter ograniczenia, lecz go nie usuwa. Zamiast braku danych występuje obecnie pytanie o przenoszalność wyników pomiędzy organizacjami, a prawdopodobieństwa zwracane przez model nie zostały skalibrowane na wynikach tego wdrożenia. Ocena, czy model uczony przewyższa heurystykę w warunkach konkretnego zespołu, pozostaje zadaniem wymagającym danych gromadzonych przez sam system.
 
 Dane syntetyczne mogą służyć do sprawdzania poprawności mechanizmów i zachowania w kontrolowanych scenariuszach. Wyniki uzyskane wyłącznie na takich danych nie stanowią jednak wystarczającego dowodu skuteczności w rzeczywistych organizacjach.
 

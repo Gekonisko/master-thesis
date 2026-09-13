@@ -40,7 +40,11 @@ Frontend opracowano w Angularze z wykorzystaniem języka TypeScript. Podział na
 
 Do kierowania komend i zapytań do odpowiednich procedur obsługi zastosowano bibliotekę MediatR. Walidację danych wejściowych wspiera FluentValidation. Dokumentacja interfejsu serwerowego jest udostępniana w środowisku deweloperskim z wykorzystaniem OpenAPI i interfejsu Scalar.
 
-Integrację z dużym modelem językowym zrealizowano za pomocą klienta HTTP komunikującego się z usługą Anthropic. Dostawca ten stanowi szczegół infrastrukturalny modułu estymacji. Pozostałe części aplikacji korzystają z ujednoliconego kontraktu wejścia i wyniku analizy.
+Integrację z dużym modelem językowym zrealizowano za pomocą klienta HTTP komunikującego się z usługą Anthropic. Dostawca ten stanowi szczegół infrastrukturalny modułów estymacji kosztów i priorytetyzacji. Pozostałe części aplikacji korzystają z ujednoliconego kontraktu wejścia i wyniku analizy.
+
+Do rozwiązywania zadania optymalizacji przydziałów wykorzystano solver CP-SAT z pakietu OR-Tools. Jest to jedyny komponent rozwiązania zawierający bibliotekę natywną, co ma znaczenie dla przenośności: niepowodzenie jej załadowania jest obsługiwane jako przewidziany przypadek, prowadzący do wykonania metody bazowej, a nie jako błąd zlecenia.
+
+Model predykcji opóźnień nie wymaga natomiast żadnej biblioteki wnioskowania. Regresja logistyczna nad pięcioma cechami sprowadza się do kilkudziesięciu współczynników przechowywanych jako zasób osadzony w module, a jej obliczenie wykonywane jest bezpośrednio w kodzie aplikacji. Był to jeden z argumentów przemawiających za modelem liniowym.
 
 \section{Monolit modularny i granice odpowiedzialności}
 
@@ -156,15 +160,17 @@ W module znajduje się również rejestr aktywności. Zdarzenia związane ze zmi
 
 Moduł \texttt{Scheduling} odpowiada za obliczenia harmonogramu, dane wykresu Gantta oraz propozycje przydzielania zadań. Korzysta z informacji o zadaniach i zespole udostępnianych przez kontrakty wspólne.
 
-Obliczenia harmonogramu obejmują zależności, terminy i zapas czasu. Mechanizm przygotowywania przydziałów korzysta z heurystyki zachłannej uwzględniającej między innymi obciążenie i dopasowanie kompetencji.
+Obliczenia harmonogramu obejmują zależności, terminy i zapas czasu. Przygotowywanie przydziałów odbywa się natomiast za granicą modelu optymalizacyjnego, za którą umieszczono solver programowania z ograniczeniami oraz heurystykę zachłanną pełniącą rolę metody bazowej i rozwiązania zastępczego.
 
-Propozycja jest oddzielona od jej zastosowania. Użytkownik może zapoznać się z wynikiem i zatwierdzić całość lub wybrane elementy. Obecna implementacja tego mechanizmu dotyczy przede wszystkim przydzielania nieprzypisanych zadań, a nie pełnej optymalizacji kalendarza wszystkich pracowników.
+Solver uwzględnia kolejność wynikającą z zależności, niemożność równoczesnego wykonywania dwóch zadań przez jedną osobę oraz skalowanie czasu trwania dostępnością wykonawcy. Wykorzystanie biblioteki OR-Tools stanowi jedyną zależność od komponentu natywnego w całym rozwiązaniu, co uwzględniono w projekcie obsługi błędów.
+
+Propozycja jest oddzielona od jej zastosowania. Użytkownik może zapoznać się z wynikiem i zatwierdzić całość lub wybrane elementy. Mechanizm dotyczy przydzielania zadań nieprzypisanych; prace już przypisane nie są przenoszone, choć solver uwzględnia je jako zajmujące czas swoich wykonawców.
 
 \subsection{Moduł RiskPrediction}
 
-Moduł \texttt{RiskPrediction} przygotowuje oceny ryzyka zadań i prognozy dotyczące sprintów. W analizowanej implementacji wykorzystuje reguły heurystyczne oparte na bieżących danych.
+Moduł \texttt{RiskPrediction} przygotowuje oceny ryzyka zadań i prognozy dotyczące sprintów. Zawiera dwie implementacje granicy modelu: heurystykę punktową opartą na bieżących danych oraz model regresji logistycznej dopasowany do zewnętrznego zbioru projektów zwinnych.
 
-Nazwa modułu określa jego odpowiedzialność funkcjonalną, ale nie oznacza, że zawiera wytrenowany model uczenia maszynowego. Obecny mechanizm stanowi rozwiązanie bazowe, które może być porównywane z modelem uczonym po przygotowaniu odpowiedniego zbioru danych.
+Domyślnie działa heurystyka, a model uczony jest włączany ustawieniem konfiguracyjnym. Prognozy sprintu pozostają w obu przypadkach projekcją opartą na tempie zespołu i nie pochodzą z modelu uczonego, ponieważ wykorzystany zbiór danych nie zawiera informacji o wielkości opóźnienia.
 
 Wynikom towarzyszą informacje o czynnikach wpływających na ocenę. Pozwala to powiązać sygnał ryzyka z konkretną sytuacją, taką jak bliski termin, brak wykonawcy lub zależności blokujące realizację.
 
@@ -172,7 +178,7 @@ Moduł zawiera ponadto dwa elementy przygotowane pod przyszłą zmianę metody. 
 
 \subsection{Moduł BacklogPrioritisation}
 
-Moduł \texttt{BacklogPrioritisation} wyznacza rekomendowaną kolejność zadań. Wykorzystuje wielokryterialną ocenę uwzględniającą wartość biznesową, zależności, złożoność i ryzyko.
+Moduł \texttt{BacklogPrioritisation} wyznacza rekomendowaną kolejność zadań. Zawiera dwie implementacje granicy modelu: wielokryterialną ocenę punktową uwzględniającą wartość biznesową, zależności, złożoność i ryzyko oraz porządkowanie z wykorzystaniem modelu językowego. O wyborze decyduje dostępność konfiguracji usługi zewnętrznej, przy czym jej brak prowadzi do użycia oceny punktowej.
 
 Rozdzielenie go od modułu \texttt{Delivery} pozwala odróżnić bieżący porządek backlogu od propozycji wynikającej z analizy. Zmiana danych operacyjnych następuje w ramach odrębnej operacji związanej z decyzją użytkownika.
 
@@ -199,12 +205,43 @@ Mechanizmy analityczne różnią się sposobem wyznaczania wyniku. Ocena ryzyka 
 
 Aby zmiany te nie wymuszały modyfikacji całego modułu, w architekturze zastosowano jednolity wzorzec granicy modelu. Warstwa aplikacyjna definiuje interfejs opisujący, co model otrzymuje i co zwraca, natomiast konkretny sposób wyznaczenia wyniku jest rejestrowany w warstwie infrastruktury lub dostarczany jako implementacja tego interfejsu.
 
-W systemie występują dwie takie granice, zbudowane według tego samego schematu:
+W systemie występują cztery takie granice, zbudowane według tego samego schematu i obejmujące wszystkie mechanizmy analityczne. Ich zestawienie przedstawia tabela~\ref{tab:granice-modeli}.
 
-\begin{itemize}
-    \item \texttt{ICostEstimationModel} --- estymacja kosztów. Implementacją jest \texttt{AnthropicCostEstimationModel}, realizujący wywołanie usługi zewnętrznej.
-    \item \texttt{IRiskPredictionModel} --- predykcja ryzyka. Jedyną obecną implementacją jest \texttt{WeightedScorecardRiskModel}, zawierający heurystykę punktową.
-\end{itemize}
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Granice modeli i ich implementacje}
+    \label{tab:granice-modeli}
+    \begin{tabularx}{\textwidth}{@{}lXX@{}}
+        \toprule
+        \textbf{Granica} & \textbf{Implementacja domyślna} & \textbf{Implementacja alternatywna} \\
+        \midrule
+        \texttt{ICostEstimationModel}
+        & model językowy
+        & --- \\
+        \addlinespace
+        \texttt{IRiskPredictionModel}
+        & heurystyka punktowa
+        & model regresji logistycznej \\
+        \addlinespace
+        \texttt{IBacklogPrioritisationModel}
+        & model językowy, przy braku klucza heurystyka punktowa
+        & heurystyka punktowa \\
+        \addlinespace
+        \texttt{IScheduleOptimisationModel}
+        & solver programowania z ograniczeniami
+        & heurystyka zachłanna \\
+        \bottomrule
+    \end{tabularx}
+
+    \par\smallskip
+    \begin{minipage}{\textwidth}
+        \footnotesize
+        Źródło: opracowanie własne. Wyboru implementacji dokonuje konfiguracja modułu.
+    \end{minipage}
+\end{table}
+
+Sposób wyboru implementacji różni się zależnie od charakteru mechanizmu. Dla predykcji ryzyka model uczony jest włączany jawnym ustawieniem, ponieważ jego przewaga nad heurystyką nie została wykazana w warunkach tego wdrożenia. Dla priorytetyzacji decyduje obecność skonfigurowanego klucza dostępu do usługi zewnętrznej, przy czym jego brak powoduje użycie heurystyki, a nie niepowodzenie analizy. Dla harmonogramowania solver jest metodą domyślną, którą można wyłączyć, ponieważ rozwiązuje on zadeklarowany cel bezpośrednio i nie może wypaść gorzej od metody bazowej pod względem tego celu.
 
 Interfejs predykcji ryzyka przyjmuje strukturę opisującą komplet danych, na które model może patrzeć: identyfikator projektu, zadania, sprinty, członków zespołu oraz datę odniesienia. Przekazanie daty jako parametru, zamiast odczytywania jej z zegara systemowego wewnątrz implementacji, sprawia, że model pozostaje funkcją swojego wejścia. Umożliwia to powtórzenie obliczeń dla wskazanego dnia oraz późniejsze odtworzenie prognozy na danych historycznych.
 
@@ -214,7 +251,11 @@ Umieszczenie tych informacji w wyniku, a nie w definicji interfejsu, wynika z pr
 
 Procedura wykonawcza analizy nie zawiera żadnej wiedzy o sposobie wyznaczania ocen. Pobiera dane przez wspólne kontrakty, przekazuje je zarejestrowanemu modelowi i zapisuje otrzymany rezultat. Zamiana implementacji dotyczy zatem rejestracji usług w warstwie infrastruktury i nie wymaga zmian w procedurze obsługi zlecenia, sposobie zapisu wyników ani w punktach końcowych API.
 
-Granica ta pełni również funkcję porządkującą przy interpretacji wyników. Ponieważ każde uruchomienie zapisuje nazwę modelu, możliwe jest odróżnienie ocen pochodzących z różnych metod. Ma to znaczenie przy planowanym porównaniu heurystyki z modelem uczonym, gdzie obie metody muszą pozostać jednocześnie uruchamialne, aby porównanie w ogóle mogło zostać przeprowadzone.
+Granica ta pełni również funkcję porządkującą przy interpretacji wyników. Ponieważ każde uruchomienie zapisuje nazwę modelu, możliwe jest odróżnienie ocen pochodzących z różnych metod. Ma to bezpośrednie znaczenie dla porównania heurystyki z modelem uczonym: obie metody pozostają jednocześnie uruchamialne i zarejestrowane, dzięki czemu porównanie może zostać przeprowadzone na danych tego wdrożenia.
+
+W trzech granicach identyfikator metody jest właściwością zarejestrowanej implementacji. Granica optymalizacji harmonogramu stanowi wyjątek i umieszcza go w wyniku, ponieważ solver może nie znaleźć rozwiązania w wyznaczonym czasie albo nie uzyskać dostępu do biblioteki natywnej. W obu przypadkach zwracany jest wynik metody bazowej, a to, który mechanizm rzeczywiście wykonał obliczenia, jest faktem dotyczącym pojedynczego uruchomienia, nie zaś stałą właściwością konfiguracji.
+
+Zastosowanie tego samego wzorca we wszystkich czterech mechanizmach ujawniło zarazem różnicę między nimi, która nie wynika z techniki, lecz z natury rozwiązywanych problemów. Predykcja ryzyka szacuje wielkość nieznaną i daje się uczyć na danych. Optymalizacja harmonogramu rozwiązuje zadanie o jawnym celu i nie wymaga uczenia. Priorytetyzacja backlogu jest natomiast oceną wartościującą, dla której nie istnieje wynik poprawny mogący pełnić funkcję etykiety, wobec czego naturalną implementacją alternatywną jest tam model językowy, a nie model dopasowywany do danych. Ujednolicony kształt granicy pozostaje odpowiedni dla każdego z tych przypadków, lecz sposób oceny jakości jest dla każdego z nich inny.
 
 \section{Model danych i rozdzielenie danych modułów}
 
